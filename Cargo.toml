@@ -1,0 +1,19 @@
+[package]
+name = "dropdl"
+version = "0.1.0"
+edition = "2024"
+description = "Minimal GUI to download video/audio from a pasted link, powered by yt-dlp"
+
+[dependencies]
+dirs = "7.0.0"
+eframe = { version = "0.36.2", features = ["persistence"] }
+rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+ureq = "3.4.2"
+zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1
