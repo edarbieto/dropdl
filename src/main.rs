@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod job;
+mod paths;
 mod tools;
 
 use std::path::PathBuf;
@@ -16,14 +17,16 @@ use tools::{Tool, ToolState};
 const LOG_LIMIT: usize = 2000;
 
 fn main() -> eframe::Result {
+    let dirs = paths::resolve();
     let options = eframe::NativeOptions {
+        persistence_path: Some(dirs.config.join("app.ron")),
         viewport: egui::ViewportBuilder::default()
             .with_title("dropdl")
             .with_inner_size([560.0, 420.0])
             .with_min_inner_size([420.0, 300.0]),
         ..Default::default()
     };
-    eframe::run_native("dropdl", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
+    eframe::run_native("dropdl", options, Box::new(|cc| Ok(Box::new(App::new(cc, dirs)))))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,7 +55,8 @@ enum Msg {
     Job(usize, Event),
     JobEnd(usize, Result<(), String>),
     Cookies(String, Result<usize, String>),
-    Updated(Result<String, String>),
+    Log(String),
+    ToolsChecked,
 }
 
 enum Status {
@@ -93,20 +97,25 @@ struct App {
     show_log: bool,
     show_browser: bool,
     cookie_check: CookieCheck,
-    updating: bool,
+    dirs: paths::AppDirs,
+    checking: bool,
     tx: Sender<Msg>,
     rx: Receiver<Msg>,
 }
 
 impl App {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let settings: Settings = cc
+    fn new(cc: &eframe::CreationContext<'_>, dirs: paths::AppDirs) -> Self {
+        let mut settings: Settings = cc
             .storage
             .and_then(|s| eframe::get_value(s, eframe::APP_KEY))
             .unwrap_or_default();
+        // The saved folder may not exist when the app is run from a USB drive on another PC.
+        if !settings.out_dir.is_dir() {
+            settings.out_dir = Settings::default().out_dir;
+        }
         add_fallback_fonts(&cc.egui_ctx);
         let (tx, rx) = channel();
-        let app = Self {
+        let mut app = Self {
             settings,
             input: String::new(),
             tools: Tool::ALL.iter().map(|&t| (t, ToolState::Checking)).collect(),
@@ -116,21 +125,29 @@ impl App {
             show_log: false,
             show_browser: false,
             cookie_check: CookieCheck::Idle,
-            updating: false,
+            dirs,
+            checking: false,
             tx,
             rx,
         };
+        let kind = if app.dirs.portable { "portable" } else { "per-user" };
+        let base = app.dirs.bin.parent().unwrap_or(&app.dirs.bin).display().to_string();
+        app.log(format!("data folder ({kind}): {base}"));
         app.check_tools(&cc.egui_ctx);
         app
     }
 
-    fn check_tools(&self, ctx: &egui::Context) {
-        let (tx, ctx) = (self.tx.clone(), ctx.clone());
+    /// Validates, installs and updates the tools in the background.
+    fn check_tools(&mut self, ctx: &egui::Context) {
+        self.checking = true;
+        let (tx, ctx, bin) = (self.tx.clone(), ctx.clone(), self.dirs.bin.clone());
         std::thread::spawn(move || {
-            tools::ensure_all(|tool, state| {
-                let _ = tx.send(Msg::Tool(tool, state));
+            let send = |msg| {
+                let _ = tx.send(msg);
                 ctx.request_repaint();
-            });
+            };
+            tools::ensure_all(&bin, |tool, state| send(Msg::Tool(tool, state)), |line| send(Msg::Log(line)));
+            send(Msg::ToolsChecked);
         });
     }
 
@@ -231,24 +248,8 @@ impl App {
                     }
                     self.cookie_check = CookieCheck::Result(result);
                 }
-                Msg::Updated(result) => {
-                    self.updating = false;
-                    let line = match result {
-                        Ok(s) => format!("yt-dlp update: {s}"),
-                        Err(e) => format!("yt-dlp update failed: {e}"),
-                    };
-                    self.log(line);
-                    // Re-read the version.
-                    self.tools[0].1 = ToolState::Checking;
-                    let tx = self.tx.clone();
-                    std::thread::spawn(move || {
-                        let state = match tools::find(Tool::YtDlp) {
-                            Some((path, version)) => ToolState::Ready { path, version },
-                            None => ToolState::Failed("not found".into()),
-                        };
-                        let _ = tx.send(Msg::Tool(Tool::YtDlp, state));
-                    });
-                }
+                Msg::Log(line) => self.log(line),
+                Msg::ToolsChecked => self.checking = false,
             }
         }
     }
@@ -296,16 +297,6 @@ impl App {
         });
     }
 
-    fn update_ytdlp(&mut self, ctx: &egui::Context) {
-        let Some(ytdlp) = self.tool_path(Tool::YtDlp) else { return };
-        self.updating = true;
-        let (tx, ctx) = (self.tx.clone(), ctx.clone());
-        std::thread::spawn(move || {
-            let _ = tx.send(Msg::Updated(tools::update_ytdlp(&ytdlp)));
-            ctx.request_repaint();
-        });
-    }
-
     // ---- UI ----
 
     fn tools_bar(&mut self, ui: &mut egui::Ui) {
@@ -325,16 +316,14 @@ impl App {
                 ui.add_space(4.0);
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let failed = self.tools.iter().any(|(_, s)| matches!(s, ToolState::Failed(_)));
-                if failed && ui.small_button("Retry").clicked() {
-                    self.check_tools(ui.ctx());
-                }
-                let can_update = !self.updating && self.tool_path(Tool::YtDlp).is_some();
+                // Replacing a binary that a download is using would fail.
+                let busy = self.jobs.iter().any(|j| matches!(j.status, Status::Running | Status::Processing(_)));
                 if ui
-                    .add_enabled(can_update, egui::Button::new("Update yt-dlp").small())
+                    .add_enabled(!self.checking && !busy, egui::Button::new("Check updates").small())
+                    .on_hover_text("Re-check tools and update yt-dlp/deno")
                     .clicked()
                 {
-                    self.update_ytdlp(ui.ctx());
+                    self.check_tools(ui.ctx());
                 }
                 let label = match &self.settings.browser {
                     Some(b) => format!("🍪 {}", browser_label(b)),

@@ -333,12 +333,16 @@ mod e2e {
     #[ignore]
     fn install_and_download() {
         let found = std::sync::Mutex::new(std::collections::HashMap::new());
-        tools::ensure_all(|tool, state| {
-            println!("{} {state:?}", tool.name());
+        let dirs = crate::paths::resolve();
+        let report = |tool: Tool, state: ToolState| {
+            if !matches!(state, ToolState::Downloading(_)) {
+                println!("{} {state:?}", tool.name());
+            }
             if let ToolState::Ready { path, .. } = state {
                 found.lock().unwrap().insert(tool.name(), path);
             }
-        });
+        };
+        tools::ensure_all(&dirs.bin, report, |line| println!("{line}"));
         let found = found.into_inner().unwrap();
         assert_eq!(found.len(), Tool::ALL.len(), "some tools are missing");
         let tools = Tools {

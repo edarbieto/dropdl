@@ -9,15 +9,22 @@
 - [x] Manual Video/Audio override
 - [x] Connect browser (cookies) with a connection test
 - [x] Sequential queue with progress, cancel, reveal in Explorer
-- [x] "Update yt-dlp" button
 - [x] Persisted settings (output folder, mode, browser)
+
+## v0.2 (current): portable single executable
+
+- [x] Single, portable `.exe`: static CRT, only Windows system DLLs (verified by `scripts/check-deps.ps1`)
+- [x] Portable data: `bin/` and `config/` next to the exe, with a per-user fallback when the folder is read-only
+- [x] Startup check of folders, tool contents and versions; auto-update of yt-dlp and deno
+- [x] Smaller executable: glow renderer, `opt-level = "s"`, `panic = "abort"` (15.1 MB → 6.9 MB, see docs/release.md)
+- [x] Optional UPX compression in `scripts/build-release.ps1 -Upx` (→ 2.7 MB)
+- [x] Decided: ship variant G (glow, `opt-level = "s"`, `panic = "abort"`, accesskit kept, no UPX by default)
+- [ ] Test on a clean machine (Windows Sandbox / VM without the VC++ Redistributable or a GPU driver)
 
 ## Next
 
-- [ ] Single, portable executable: one `.exe` with no installer, no extra DLLs and a static CRT (`+crt-static`), that runs from any folder or USB drive
-- [ ] Compress the executable (tune size-focused release flags such as `opt-level = "z"` and `panic = "abort"`, then evaluate UPX, checking startup time and antivirus false positives)
+- [ ] macOS and Linux builds: per-platform tool download URLs, process-tree kill, reveal-in-folder, fallback fonts
 - [ ] App icon and Windows version metadata
-- [ ] Keep yt-dlp current automatically (e.g. check weekly on startup)
 - [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect a browser
 - [ ] "Retry" button on failed items
 - [ ] Show the total size and speed of the current download
@@ -29,8 +36,7 @@
 - [ ] Cookies from an exported `cookies.txt` file (fallback when browser reading fails)
 - [ ] Optional M4A/AAC audio output (no re-encode)
 - [ ] Parallel downloads (configurable, default 1)
-- [ ] macOS/Linux support (tool download URLs, process kill, reveal-in-folder)
-- [ ] Portable mode: keep tools and settings next to the exe when a `portable` marker file exists
+- [ ] Update ffmpeg automatically (BtbN's "latest" tag has no version number; compare build dates)
 
 ## Non-goals
 

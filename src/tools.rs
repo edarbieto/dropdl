@@ -1,11 +1,14 @@
-//! Detection, validation and automatic download of the external binaries
+//! Detection, validation, download and update of the external binaries
 //! dropdl depends on: yt-dlp, deno (JS runtime for YouTube) and ffmpeg/ffprobe.
 
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
+const YTDLP_REPO: &str = "yt-dlp/yt-dlp";
+const DENO_REPO: &str = "denoland/deno";
 const YTDLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 const DENO_URL: &str =
     "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip";
@@ -32,7 +35,7 @@ impl Tool {
     }
 
     fn exe(self) -> String {
-        format!("{}.exe", self.name())
+        format!("{}{}", self.name(), std::env::consts::EXE_SUFFIX)
     }
 
     fn version_arg(self) -> &'static str {
@@ -60,14 +63,6 @@ impl ToolState {
     }
 }
 
-/// Where dropdl keeps its own copies of the tools: `%LOCALAPPDATA%\dropdl\bin`.
-pub fn bin_dir() -> PathBuf {
-    dirs::data_local_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join("dropdl")
-        .join("bin")
-}
-
 /// A `Command` that never flashes a console window on Windows.
 pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     #[allow(unused_mut)]
@@ -81,60 +76,67 @@ pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     cmd
 }
 
-/// Checks every tool and downloads the missing ones, reporting each state change.
-pub fn ensure_all(report: impl Fn(Tool, ToolState)) {
+/// Startup check of the `bin` folder: validates every tool, downloads the
+/// missing ones and updates yt-dlp/deno when a newer release exists.
+/// A tool on PATH is only used if dropdl can't get its own copy.
+pub fn ensure_all(bin: &Path, report: impl Fn(Tool, ToolState), log: impl Fn(String)) {
     for tool in Tool::ALL {
         report(tool, ToolState::Checking);
     }
-    let mut found: Vec<_> = Tool::ALL.iter().map(|&t| find(t)).collect();
-    // yt-dlp is given one directory for both ffmpeg and ffprobe, so a mixed
-    // pair (e.g. one on PATH, one elsewhere) counts as missing.
-    let ff_dir = |i: usize| found[i].as_ref().and_then(|(p, _)| p.parent().map(Path::to_path_buf));
-    if ff_dir(2) != ff_dir(3) {
-        found[2] = None;
-        found[3] = None;
-    }
-    let mut missing = Vec::new();
-    for (tool, hit) in Tool::ALL.into_iter().zip(found) {
-        match hit {
-            Some((path, version)) => report(tool, ToolState::Ready { path, version }),
-            None => missing.push(tool),
+    let local: Vec<_> = Tool::ALL.iter().map(|&t| local(bin, t)).collect();
+    for (&tool, hit) in Tool::ALL.iter().zip(&local) {
+        if let Some((path, version)) = hit {
+            report(tool, ToolState::Ready { path: path.clone(), version: version.clone() });
         }
     }
 
-    if missing.contains(&Tool::YtDlp) {
-        install(&[Tool::YtDlp], &report, |dest, p| download(YTDLP_URL, &dest.join("yt-dlp.exe"), p));
+    for (tool, repo) in [(Tool::YtDlp, YTDLP_REPO), (Tool::Deno, DENO_REPO)] {
+        let current = local[tool as usize].as_ref().map(|(_, v)| v.as_str());
+        if let Some(v) = current {
+            match latest_version(repo) {
+                Some(latest) if latest != v => log(format!("{}: updating {v} → {latest}", tool.name())),
+                Some(_) => continue,
+                None => {
+                    log(format!("{}: could not check for updates", tool.name()));
+                    continue;
+                }
+            }
+        }
+        install(&[tool], bin, &report, &log, |p| match tool {
+            Tool::YtDlp => download(YTDLP_URL, &bin.join(tool.exe()), p),
+            _ => download_zip(DENO_URL, bin, &[&tool.exe()], p),
+        });
     }
-    if missing.contains(&Tool::Deno) {
-        install(&[Tool::Deno], &report, |dest, p| download_zip(DENO_URL, dest, &["deno.exe"], p));
-    }
-    // ffmpeg and ffprobe ship in the same archive.
-    let ff: Vec<Tool> = missing
-        .iter()
-        .copied()
-        .filter(|t| matches!(t, Tool::Ffmpeg | Tool::Ffprobe))
-        .collect();
-    if !ff.is_empty() {
-        install(&ff, &report, |dest, p| {
-            download_zip(FFMPEG_URL, dest, &["ffmpeg.exe", "ffprobe.exe"], p)
+
+    // ffmpeg and ffprobe ship in the same archive and must sit side by side.
+    if local[Tool::Ffmpeg as usize].is_none() || local[Tool::Ffprobe as usize].is_none() {
+        let names = [Tool::Ffmpeg.exe(), Tool::Ffprobe.exe()];
+        install(&[Tool::Ffmpeg, Tool::Ffprobe], bin, &report, &log, |p| {
+            download_zip(FFMPEG_URL, bin, &[&names[0], &names[1]], p)
         });
     }
 }
 
-/// Looks for a working copy of `tool`, first in our bin dir, then on PATH.
-pub fn find(tool: Tool) -> Option<(PathBuf, String)> {
-    let exe = tool.exe();
-    let mut candidates = vec![bin_dir().join(&exe)];
-    if let Some(path) = std::env::var_os("PATH") {
-        candidates.extend(std::env::split_paths(&path).map(|dir| dir.join(&exe)));
-    }
-    candidates
-        .into_iter()
+/// dropdl's own copy of `tool`, if it runs.
+fn local(bin: &Path, tool: Tool) -> Option<(PathBuf, String)> {
+    let path = bin.join(tool.exe());
+    let v = version(tool, &path)?;
+    Some((path, v))
+}
+
+/// The first working copy of `tool` on PATH.
+fn on_path(tool: Tool) -> Option<(PathBuf, String)> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(tool.exe()))
         .filter(|p| p.is_file())
         .find_map(|p| version(tool, &p).map(|v| (p, v)))
 }
 
 fn version(tool: Tool, path: &Path) -> Option<String> {
+    if !path.is_file() {
+        return None;
+    }
     let out = command(path).arg(tool.version_arg()).output().ok()?;
     if !out.status.success() {
         return None;
@@ -150,28 +152,48 @@ fn version(tool: Tool, path: &Path) -> Option<String> {
     Some(v.to_string())
 }
 
+/// Latest release tag of a GitHub repo (without a leading "v"), read from the
+/// `/releases/latest` redirect so it doesn't count against the API rate limit.
+fn latest_version(repo: &str) -> Option<String> {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .max_redirects(0)
+        .http_status_as_error(false)
+        .timeout_global(Some(Duration::from_secs(15)))
+        .build()
+        .into();
+    let resp = agent
+        .get(&format!("https://github.com/{repo}/releases/latest"))
+        .call()
+        .ok()?;
+    let location = resp.headers().get("location")?.to_str().ok()?;
+    let tag = location.rsplit('/').next()?;
+    Some(tag.trim_start_matches('v').to_string())
+}
+
+/// Downloads `tools` with `fetch`, then reports their final state. If the
+/// download failed, an existing copy (old version, or one on PATH) is kept.
 fn install(
     tools: &[Tool],
+    bin: &Path,
     report: &impl Fn(Tool, ToolState),
-    fetch: impl FnOnce(&Path, &mut dyn FnMut(f32)) -> Result<(), String>,
+    log: &impl Fn(String),
+    fetch: impl FnOnce(&mut dyn FnMut(f32)) -> Result<(), String>,
 ) {
-    let dest = bin_dir();
-    let result = fs::create_dir_all(&dest)
-        .map_err(|e| e.to_string())
-        .and_then(|_| {
-            fetch(&dest, &mut |p| {
-                for &t in tools {
-                    report(t, ToolState::Downloading(p));
-                }
-            })
-        });
+    let result = fetch(&mut |p| {
+        for &t in tools {
+            report(t, ToolState::Downloading(p));
+        }
+    });
+    if let Err(e) = &result {
+        log(format!("{}: download failed: {e}", tools[0].name()));
+    }
     for &tool in tools {
-        let state = match &result {
-            Err(e) => ToolState::Failed(e.clone()),
-            Ok(()) => match find(tool) {
-                Some((path, version)) => ToolState::Ready { path, version },
-                None => ToolState::Failed("downloaded but does not run".into()),
-            },
+        let state = match local(bin, tool).or_else(|| on_path(tool)) {
+            Some((path, version)) => ToolState::Ready { path, version },
+            None => ToolState::Failed(match &result {
+                Err(e) => e.clone(),
+                Ok(()) => "downloaded but does not run".into(),
+            }),
         };
         report(tool, state);
     }
@@ -234,8 +256,12 @@ fn download_zip(
             if !wanted.contains(&name.as_str()) {
                 continue;
             }
-            let mut out = fs::File::create(dest.join(&name)).map_err(|e| e.to_string())?;
+            let target = dest.join(&name);
+            let part = target.with_extension("part");
+            let mut out = fs::File::create(&part).map_err(|e| e.to_string())?;
             io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+            drop(out);
+            fs::rename(&part, &target).map_err(|e| e.to_string())?;
             found += 1;
         }
         if found < wanted.len() {
@@ -247,14 +273,16 @@ fn download_zip(
     result
 }
 
-/// Runs `yt-dlp -U` and returns its output.
-pub fn update_ytdlp(ytdlp: &Path) -> Result<String, String> {
-    let out = command(ytdlp).arg("-U").output().map_err(|e| e.to_string())?;
-    let text = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let last = text.lines().filter(|l| !l.trim().is_empty()).last().unwrap_or("").to_string();
-    if out.status.success() { Ok(last) } else { Err(last) }
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[ignore]
+    fn latest_versions() {
+        let v = super::latest_version(super::YTDLP_REPO);
+        println!("yt-dlp latest: {v:?}");
+        assert!(v.is_some_and(|v| v.chars().next().is_some_and(|c| c.is_ascii_digit())));
+        let v = super::latest_version(super::DENO_REPO);
+        println!("deno latest: {v:?}");
+        assert!(v.is_some_and(|v| !v.starts_with('v')));
+    }
 }

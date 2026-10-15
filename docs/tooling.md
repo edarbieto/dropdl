@@ -1,34 +1,41 @@
-# External tools
+# External tools and data folders
 
-| Tool | Why | Source |
-|---|---|---|
-| yt-dlp | the downloader | `github.com/yt-dlp/yt-dlp` latest release, `yt-dlp.exe` |
-| deno | JS runtime that yt-dlp needs to solve YouTube's player challenges | `github.com/denoland/deno` latest release, `deno-x86_64-pc-windows-msvc.zip` |
-| ffmpeg | merging streams, remuxing, MP3 encoding, embedding covers/metadata | `github.com/BtbN/FFmpeg-Builds` `latest`, `ffmpeg-master-latest-win64-gpl.zip` |
-| ffprobe | used by yt-dlp's post-processors | same archive as ffmpeg |
+## Data folders (portable by default)
 
-## Discovery and validation
+On startup, dropdl resolves two folders (`src/paths.rs`):
 
-On startup, `tools::ensure_all` checks each tool in this order:
+```
+<folder containing dropdl.exe>/
+├── dropdl.exe
+├── bin/       yt-dlp, deno, ffmpeg, ffprobe
+└── config/    app.ron (settings: output folder, mode, connected browser)
+```
 
-1. `%LOCALAPPDATA%\dropdl\bin\<tool>.exe` (dropdl's own copy)
-2. every directory on `PATH`
+- They are created if missing and checked for write access, so the whole app can be carried on a USB drive.
+- If the exe's folder isn't writable (e.g. `Program Files`), dropdl falls back to the per-user data dir (`%LOCALAPPDATA%\dropdl\{bin,config}` on Windows, `~/.local/share/dropdl` on Linux, `~/Library/Application Support/dropdl` on macOS).
+- On macOS, dropdl never writes inside an `.app` bundle, because that would break its signature.
+- The environment variable `DROPDL_HOME` overrides the location (useful for tests).
 
-A candidate is accepted only if it runs and exits successfully with `--version` (or `-version` for ffmpeg/ffprobe). The version string is shown when you hover the indicator.
+The chosen folder is printed as the first line of the Log.
 
-ffmpeg and ffprobe must sit in the **same directory**, because yt-dlp receives a single `--ffmpeg-location`. If they were found in different places, both are re-installed into the bin dir.
+## Tools
 
-## Installation
+| Tool | Why | Source | Auto-update |
+|---|---|---|---|
+| yt-dlp | the downloader | `github.com/yt-dlp/yt-dlp` latest release, `yt-dlp.exe` | yes |
+| deno | JS runtime that yt-dlp needs to solve YouTube's player challenges | `github.com/denoland/deno` latest release, `deno-x86_64-pc-windows-msvc.zip` | yes |
+| ffmpeg | merging streams, remuxing, MP3 encoding, embedding covers/metadata | `github.com/BtbN/FFmpeg-Builds` `latest`, `ffmpeg-master-latest-win64-gpl.zip` | no (only validated) |
+| ffprobe | used by yt-dlp's post-processors | same archive as ffmpeg | no |
 
-Missing tools are downloaded into `%LOCALAPPDATA%\dropdl\bin`:
+## Startup check (`tools::ensure_all`)
 
-- Files are written to a `.part` file first and renamed once complete.
-- From zip archives, only the needed `.exe` files are extracted (flat), and the zip is then deleted.
-- After installing, the tool is validated again. If it doesn't run, the indicator shows the error and a **Retry** button appears.
+1. **Contents:** each tool in `bin/` must exist and run successfully with `--version` (`-version` for ffmpeg/ffprobe). The parsed version is shown when you hover the indicator.
+2. **Versions:** for yt-dlp and deno, the latest release tag is read from GitHub's `/releases/latest` redirect. This is one small request per tool and doesn't use the API rate limit. If the local version differs, the new release is downloaded. If the check fails (e.g. offline), the existing copy is kept and the Log says so.
+3. **Missing tools** are downloaded into `bin/`. ffmpeg and ffprobe always come from the same archive and stay side by side, because yt-dlp gets a single `--ffmpeg-location`.
+4. **Fallback:** if a download fails, dropdl keeps the old local copy, or uses a working copy found on `PATH`. If neither exists, the indicator turns red with the error.
 
-The ffmpeg archive is the largest download (~200 MB), so the first run takes a while on slow connections.
+Download details:
+- Files are written to `*.part` and renamed when complete, so an interrupted download never leaves a broken tool.
+- From zip archives, only the needed executables are extracted, and the zip is deleted afterwards.
 
-## Updating
-
-- **Update yt-dlp** runs `yt-dlp -U`. This only works for the standalone `.exe`. A copy installed via pip on `PATH` must be updated with pip.
-- To refresh deno or ffmpeg, delete them from the bin dir and restart the app.
+**Check updates** in the toolbar re-runs the whole check. It is disabled while a download is running, because Windows can't replace a running executable. The ffmpeg archive is the largest download (~200 MB). To refresh ffmpeg, delete it from `bin/` and click **Check updates**.

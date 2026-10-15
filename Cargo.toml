@@ -6,14 +6,25 @@ description = "Minimal GUI to download video/audio from a pasted link, powered b
 
 [dependencies]
 dirs = "7.0.0"
-eframe = { version = "0.36.2", features = ["persistence"] }
+# glow (OpenGL) instead of the default wgpu renderer: ~6 MB smaller, runs on Windows/macOS/Linux.
+eframe = { version = "0.36.2", default-features = false, features = [
+    "accesskit",
+    "default_fonts",
+    "glow",
+    "links",
+    "persistence",
+    "wayland",
+    "x11",
+] }
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }
 ureq = "3.4.2"
 zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
 
+# Size-focused; measurements in docs/release.md.
 [profile.release]
-opt-level = 3
+opt-level = "s"
+panic = "abort"
 lto = true
 strip = true
 codegen-units = 1

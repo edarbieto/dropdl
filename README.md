@@ -12,14 +12,15 @@ Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it use
   - Everything else (YouTube, TikTok, Instagram, Facebook, Zoom, X, Vimeo, …) becomes **MP4 with H.264 + AAC**, which plays almost anywhere.
   - YouTube Music albums and playlists are saved to their own folder with numbered tracks.
   - You can force **Video (MP4)** or **Audio (MP3)** instead.
-- **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, and downloads whatever is missing.
+- **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, downloads whatever is missing, and updates yt-dlp and deno when a new release exists.
+- **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive.
 - **Connect browser:** reuses your browser's login cookies for sites that need a session (Instagram, Facebook, private or age-restricted videos).
 - Sequential download queue with progress, cancel, and "show in folder".
 - Remembers the output folder, mode and connected browser.
 
 ## Usage
 
-1. Run `dropdl.exe`. On first run, wait for the four tool indicators to turn green.
+1. Put `dropdl.exe` in any folder and run it. On first run, it creates `bin/` and `config/` beside itself; wait for the four tool indicators to turn green.
 2. Copy a link and press **Ctrl+V** in the window.
 3. Click a finished item to reveal the file in Explorer.
 
@@ -30,7 +31,8 @@ Downloads go to your *Downloads* folder by default. Use **Change…** to pick an
 Requires Rust (stable, edition 2024).
 
 ```sh
-cargo build --release          # → target/release/dropdl.exe
+scripts/build-release.ps1      # → dist/dropdl.exe (portable, dependency-checked)
+scripts/build-release.ps1 -Upx # same, compressed with UPX (~2.7 MB)
 cargo test                     # unit tests (offline)
 cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testing.md)
 ```
@@ -39,14 +41,15 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 
 - [docs/architecture.md](docs/architecture.md): how the code is organized
 - [docs/download-rules.md](docs/download-rules.md): which format each link gets, and why
-- [docs/tooling.md](docs/tooling.md): how external tools are found, validated and installed
+- [docs/tooling.md](docs/tooling.md): data folders, and how tools are validated, installed and updated
 - [docs/cookies.md](docs/cookies.md): the "Connect browser" feature and troubleshooting
 - [docs/testing.md](docs/testing.md): how to test
+- [docs/release.md](docs/release.md): portable release build, size measurements and trade-offs
 - [ROADMAP.md](ROADMAP.md): planned work
 
 ## Limitations
 
-- Windows only for now.
+- Windows only for now. The UI stack (egui + glow) is cross-platform; macOS and Linux are on the roadmap.
 - Zoom recordings protected by a passcode are not supported.
 - Some sites block certain networks or require a login. Use **Connect browser** in those cases.
 - Only download content you have the right to download.

@@ -1,0 +1,7 @@
+# Link the C runtime statically so dropdl.exe doesn't need the
+# Visual C++ Redistributable (VCRUNTIME140.dll) on the target machine.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
