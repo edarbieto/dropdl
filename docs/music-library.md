@@ -41,7 +41,7 @@ The same fields for every format, written by dropdl after yt-dlp downloads the a
 | Album | album title |
 | Track / total | from the album's track list, not from the playlist index |
 | Disc / total | from MusicBrainz. Without a match, 1/1: YouTube Music numbers multi-disc albums as one continuous list (e.g. 1–78) |
-| Date | full release date from MusicBrainz, else the year from YouTube Music |
+| Date | the album's original release date from MusicBrainz (its release group, not the reissue that matched), else the year from YouTube Music |
 | MusicBrainz IDs | release, release group, recording and artist IDs when matched. Players and servers use them to group reliably |
 | Compilation | set for "Various Artists" albums |
 | Cover | embedded, square JPEG ~1200 px |
@@ -55,13 +55,17 @@ Tag library: [`lofty`](https://crates.io/crates/lofty) (pure Rust; ID3v2, MP4, O
 
 Before tagging, dropdl looks up the album in [MusicBrainz](https://musicbrainz.org): open data (CC0), free, no API key. If there is no reliable match (common for small or very new artists), only the YouTube Music data is used. Discogs was not chosen because its search API needs a token.
 
-1. Search releases by artist and album title (`/ws/2/release?query=…`).
-2. Keep candidates with the same total track count as the YouTube Music album.
-3. Compare position by position: every duration within ±3 s and the titles equal after normalizing (lowercase, accents and punctuation removed) for at least 90% of the tracks.
-4. Several candidates pass (one album has many editions): prefer Digital Media, then CD, then the earliest date. Vinyl editions split an album into sides, so they come last.
-5. No candidate passes: YouTube Music data only.
+1. Search releases (`/ws/2/release?query=…`, up to 100 results), from strict to loose, until a candidate matches:
+   1. artist and album title as YouTube Music shows them;
+   2. artist and the base title, without version notes: "I Never Loved a Man the Way I Love You (Mono)" → "… Love You" (only when it differs);
+   3. the base title alone, because artist names can differ in punctuation ("RUN DMC" on YouTube Music, "Run‐D.M.C." on MusicBrainz).
 
-From a match dropdl takes the disc numbers and totals, the full release date, the titles and artist credits, and the MusicBrainz IDs. The album artist stays the same as long as MusicBrainz credits the same artist. The cover still comes from YouTube Music (always available, square). MusicBrainz allows 1 request per second with a User-Agent that identifies the app. One album needs about two requests.
+   The search's own `tracks:` filter is not used: it missed the 78-track Deftones release.
+2. Keep candidates whose artist credit contains the album artist (compared simplified: lowercase letters and digits, no accents) and whose total track count is the same. Order them: Digital Media, then CD, then anything else (vinyl editions split an album into sides), then the earliest date.
+3. Fetch the details of up to 3 candidates in total, in that order, and take the first one that matches position by position: every duration within ±3 s, and at least 90% of the titles equal after normalizing. Normalizing removes trailing version and guest notes (`(feat. …)`, `(Mono)`, `- Remastered 2009`, `[Deluxe Edition]`: words feat, ft., with, mono, stereo, remaster, deluxe, edition, expanded, anniversary, bonus, version), accents, case and punctuation. YouTube Music's "Get Lucky (feat. Pharrell Williams and Nile Rodgers)" is MusicBrainz's "Get Lucky", and "¿Quien Tu Eres?" is "¿Quién tú eres?".
+4. No candidate matches: YouTube Music data only.
+
+From a match dropdl takes the disc numbers and totals, the original release date, the album and track titles, the track artist credits, and the MusicBrainz IDs. The album artist keeps YouTube Music's spelling, also where it appears in track credits ("RUN DMC", not MusicBrainz's "Run‐D.M.C."), so all albums of an artist land in one folder whether they matched or not. Players and servers can still group by the MusicBrainz artist ID. The cover still comes from YouTube Music (always available, square). MusicBrainz allows 1 request per second with a User-Agent that identifies the app; a 503 ("slow down") is retried twice. One album needs two to six requests.
 
 ## Cover and lyrics: embedded, plus one cover.jpg
 
@@ -107,7 +111,7 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
 
 1. **Spikes (no UI):** done, see Spike results below.
 2. **Format:** done. M4A copies the AAC stream (141 if available, else 140), MP3 is the existing re-encode path, and the audio format is a setting (see download-rules.md).
-3. **Metadata module** (new `src/music.rs`): YouTube Music client (album, artist releases, playlist), normalized `Track`/`Album` structs, and offline tests with recorded JSON fixtures (no personal data). Then MusicBrainz matching on top, with fixture tests for a match, a multi-disc match and no match.
+3. **Metadata module:** done. `src/music.rs` (`Album`/`Track`, link classification, `album()` = YouTube Music + MusicBrainz), `src/ytm.rs` (innertube client and parsers), `src/musicbrainz.rs` (search, matching, `apply`). Offline tests use recorded responses in `tests/fixtures/`; `music::tests::live` checks the live services. Normal playlists are left for step 6.
 4. **Tagging:** after yt-dlp finishes, write the tag schema with `lofty`: embedded cover (square JPEG ~1200 px), lyrics, then `cover.jpg` per album folder. yt-dlp still downloads the audio and the thumbnail. dropdl's tags replace `--embed-metadata` for music.
 5. **Library layout and skip-existing:** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits.
 6. **Collections:** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
@@ -146,6 +150,11 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 - `OLAK5uy_…` → album: `browse` with `VLOLAK5uy_…` returns the playlist page, which links to the album's `MPREb_…`.
 - Artist (`browse` with `UC…`): the "Albums" and "Singles & EPs" shelves link to a discography page (`MPAD…` + `params`) with the complete list (11 albums and 25 singles/EPs for the artist tested). Check continuations on very large discographies.
 - Lyrics: `next` with a `videoId` gives a lyrics browse id (`MPLY…`). Its `browse` returns plain text only, no timestamps.
+- **The album page can list music videos instead of the audio tracks.** Without a login, many albums list music videos (`MUSIC_VIDEO_TYPE_OMV`, e.g. "Give Life Back to Music (Official Audio)", 4:44 instead of 4:36): all 13 tracks of Random Access Memories, 70 of 78 for the Deftones collection, none for a compilation. It doesn't depend on the region, the visitor session or API vs. HTML page; with a logged-in (Premium) session the page lists the songs. Every track's menu has a "View song credits" entry whose browse id is `MPTC` + the song's id (`MPTCzKSsP2084nU`). dropdl takes the ids from there: they match the album's playlist (`VLOLAK5uy_…`, `MUSIC_VIDEO_TYPE_ATV`) in order, the same ones yt-dlp gets. Checked on 17 albums (two per decade from the 1960s to the 2020s, rock, soul, pop, hip hop, grunge, Cuban son, Latin pop, reggaeton, folk, flamenco pop): 16 had the entry on every track. One track (Aretha Franklin, "Save Me (Mono)") had no credits entry, but its page id was already the song. So a track without the entry keeps its page id only if it is a song (`MUSIC_VIDEO_TYPE_ATV`); otherwise dropdl reads the album playlist and takes the id at the same position when the titles agree.
+- Song → album: `next` with `videoId`, `playlistId=RDAMVM<videoId>`, `isAudioOnly`, `enablePersistentPlaylistPanel` and `tunerSettingValue=AUTOMIX_SETTING_NORMAL`. The current track's `longBylineText` links to the album. Music videos have no album link. A song can map to a collection: "Bored" maps to "The Studio Album Collection", not to "Adrenaline".
+- Normal playlists: each item's third column links to its album, but only for audio tracks. Playlists made of music videos have no album links.
+- Discography pages are paginated (100 releases per page, 258 releases for Bob Dylan). The continuation (`browse` with `continuation`) only works with the `visitorData` of the first response, sent as `context.client.visitorData` and `X-Goog-Visitor-Id`. dropdl keeps it in memory only.
+- "Various Artists" albums have an unlinked "Various Artists" as the album artist, and the track artists in the track list.
 
 **LRCLIB** (`GET /api/get?artist_name&track_name&album_name&duration`):
 - Matches with a duration tolerance of about ±2 s, also without an album name. Returns 404 (`TrackNotFound`) on a miss.
@@ -156,3 +165,4 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 - "Deftones – The Studio Album Collection": one result, a digital release with 7 discs (11+10+12+11+12+11+11 = 78 tracks). Each disc is titled with the original album (Adrenaline … Koi no Yokan). All 78 tracks match YouTube Music by position, title and duration (±3 s).
 - "Daft Punk – Random Access Memories": 27 releases (CD, vinyl, digital, anniversary editions with 22 tracks). The track-count filter and the format preference pick a 13-track single-disc edition.
 - Releases include ISRCs and a Cover Art Archive flag.
+- Match rate on 17 albums (1960s–2020s, see the YouTube Music list above): 12 with the first version of the rules, 16 after adding base titles, accent folding, the title-only search and the 503 retry. The miss is a covers compilation that isn't on MusicBrainz. The first version also took the reissue's date (Nevermind 2011, Arrival 2012); the release group's first release date gives 1991 and 1976.

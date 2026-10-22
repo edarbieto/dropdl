@@ -1,8 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod job;
+// Music library mode, wired into downloads in the next steps (docs/music-library.md).
+#[allow(dead_code)]
+mod music;
+#[allow(dead_code)]
+mod musicbrainz;
 mod paths;
 mod tools;
+#[allow(dead_code)]
+mod ytm;
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};

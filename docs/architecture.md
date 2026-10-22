@@ -1,6 +1,6 @@
 # Architecture
 
-dropdl is a single binary with four modules. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. The other three are shown below.
+dropdl is a single binary. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. `main.rs`, `tools.rs` and `job.rs` are shown below. `music.rs`, `ytm.rs` and `musicbrainz.rs` hold the music library metadata (see music-library.md); they are not wired into downloads yet.
 
 ```
 ┌──────────── main.rs (UI thread) ─────────────┐

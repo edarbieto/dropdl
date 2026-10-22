@@ -22,6 +22,10 @@ src/main.rs    UI (eframe/egui), app state, message handling, job scheduling
 src/job.rs     URL classification, yt-dlp argument building, process run + output parsing, cookie test
 src/tools.rs   tool validation, download and update (into the bin dir)
 src/paths.rs   data folders: bin/ and config/ next to the exe (fallback: per-user data dir)
+src/music.rs   music library metadata: Album/Track, link classification, YouTube Music + MusicBrainz lookup
+src/ytm.rs     YouTube Music innertube client and page parsers
+src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
+tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session)
 scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check)
 docs/          architecture, download rules, tooling, cookies, testing, release, plans (music-library, platforms)
 ROADMAP.md     planned work
@@ -56,3 +60,5 @@ The e2e test honors `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and 
 - `--no-playlist` is always passed. It only affects links that point to both a video and a playlist. Pure playlist/album links still download fully.
 - `yt-dlp --cookies-from-browser X --list-impersonate-targets` loads cookies without network access. `test_cookies` uses this.
 - egui's default font lacks CJK glyphs, so `add_fallback_fonts` loads Windows system fonts.
+- Without a login, YouTube Music album pages often list music videos instead of the songs. `ytm.rs` takes each song's id from the track menu's "View song credits" entry (`MPTC` + id).
+- Innertube continuations need the `visitorData` of the first response. Keep it in memory only, and never record it in fixtures.

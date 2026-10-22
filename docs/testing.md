@@ -6,7 +6,22 @@
 cargo test
 ```
 
-These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`).
+These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`).
+
+The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session.
+
+```sh
+cargo test music::tests::live -- --ignored --nocapture
+```
+
+checks the same lookups against the live YouTube Music and MusicBrainz services (network). To see what dropdl finds for any link (song, album, album playlist or artist; several separated by spaces):
+
+```powershell
+$env:DROPDL_TEST_MUSIC_URL = "https://music.youtube.com/watch?v=zKSsP2084nU"
+cargo test music::tests::show -- --ignored --nocapture
+```
+
+It prints each album as `Album artist/Album (Year)` with its tracks, artists, song links and the MusicBrainz match. An artist link prints every release (slow: MusicBrainz allows one request per second).
 
 ## End-to-end test (network)
 
