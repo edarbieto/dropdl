@@ -36,20 +36,25 @@ Design and implementation plan: [docs/music-library.md](docs/music-library.md). 
 - [ ] Playlists: album layout by default, optional playlist folder
 - [ ] Skip tracks whose file already exists, checked before downloading
 
-## v0.4: macOS and Linux
+## v0.4: macOS and Linux (macOS done, Linux open)
 
 Design: [docs/platforms.md](docs/platforms.md).
 
-- [ ] Per-platform tool downloads (OS + arch, executable bit, `.tar.xz`), ffmpeg source for macOS
-- [ ] Process-group kill, reveal-in-folder, fallback fonts
-- [ ] macOS `.app` (Apple Silicon, ad-hoc signed), Linux AppImage + ELF tarball
+- [x] Per-platform tool downloads (OS + arch, executable bit), yt-dlp as a program folder on macOS, ffmpeg from martin-riedl.de
+- [x] ffmpeg/ffprobe auto-update on all platforms (Windows moved from BtbN master builds to gyan.dev release builds)
+- [x] Process-group kill, reveal in Finder, fallback fonts, ⌘V hint
+- [x] Cookies from Firefox only (Chromium browsers can't be read reliably)
+- [x] macOS `.app` (Apple Silicon, ad-hoc signed): `scripts/bundle-macos.sh`
+- [ ] Test the Windows changes on a Windows machine (gyan.dev migration, Firefox-only panel)
+- [ ] Linux: tool downloads (`.tar.xz` for BtbN), `xdg-open`, Noto CJK fonts, AppImage + ELF tarball
+- [ ] Intel Mac test, or a universal binary
 - [ ] CI builds on GitHub Actions
 
 ## Next
 
 - [ ] Third-party license notices shipped with release builds (see docs/release.md, License notices)
-- [ ] App icon and Windows version metadata
-- [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect a browser
+- [ ] App icon (Windows and macOS) and Windows version metadata
+- [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect Firefox
 - [ ] "Retry" button on failed items
 - [ ] Show the total size and speed of the current download
 
@@ -59,7 +64,6 @@ Design: [docs/platforms.md](docs/platforms.md).
 - [ ] Zoom passcode-protected recordings (passcode prompt)
 - [ ] Cookies from an exported `cookies.txt` file (fallback when browser reading fails)
 - [ ] Parallel downloads (configurable, default 1)
-- [ ] Update ffmpeg automatically (BtbN's "latest" tag has no version number; compare build dates)
 
 ## Non-goals
 

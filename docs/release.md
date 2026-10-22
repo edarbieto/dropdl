@@ -1,6 +1,6 @@
 # Release build
 
-The goal is a single, portable executable that is as small as possible.
+The goal is a single, portable executable that is as small as possible. This page covers Windows; the macOS bundle is described at the end.
 
 ```powershell
 scripts/build-release.ps1          # → dist/dropdl.exe
@@ -48,6 +48,23 @@ Windows Defender (`MpCmdRun -Scan -ScanType 3`) found no threats in G, G+UPX or 
 
 Build each variant by editing the eframe features and `[profile.release]` in `Cargo.toml`. Then compare `target/release/dropdl.exe` sizes and run `upx --best --lzma` on a copy.
 
+## macOS
+
+```sh
+scripts/bundle-macos.sh    # → dist/dropdl.app and dist/dropdl-macos-<arch>.zip
+```
+
+The script builds with `cargo build --release`, fails if the binary links a library outside `/usr/lib` and `/System/Library` (`otool -L`), writes `dropdl.app` with a minimal `Info.plist` (version from `Cargo.toml`), signs it ad hoc (`codesign --sign -`) and zips it with `ditto`.
+
+Measured in October 2026 (Apple Silicon, variant G settings, Rust 1.99):
+
+| Artifact | Size |
+|---|---:|
+| `dropdl.app/Contents/MacOS/dropdl` | 5.95 MB |
+| `dropdl-macos-arm64.zip` | 3.15 MB |
+
+Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway"). The app has no icon yet (see ROADMAP).
+
 ## License notices
 
 dropdl is `MIT OR Apache-2.0`. Its 204 linked crates (checked October 2026) use compatible permissive licenses: MIT and/or Apache-2.0 for most, plus Unicode-3.0, ISC, Zlib, BSD-2/3-Clause, BSL-1.0, 0BSD, Unlicense and CDLA-Permissive-2.0 (`webpki-roots` data). Special cases:
@@ -56,6 +73,6 @@ dropdl is `MIT OR Apache-2.0`. Its 204 linked crates (checked October 2026) use 
 - `option-ext` (used by `dirs`) is MPL-2.0: file-level copyleft that only applies to changes to that crate.
 - `epaint_default_fonts` embeds fonts under OFL-1.1 and the Ubuntu Font License, which allow embedding with their notice.
 
-These licenses ask that a binary distribution includes the dependencies' copyright and license notices. Before the first public release, generate a `THIRD-PARTY-LICENSES` file from `Cargo.lock` (e.g. with `cargo-about`) and ship it next to `dropdl.exe`. Re-check when adding dependencies.
+These licenses ask that a binary distribution includes the dependencies' copyright and license notices. Before the first public release, generate a `THIRD-PARTY-LICENSES` file from `Cargo.lock` (e.g. with `cargo-about`) and ship it next to `dropdl.exe` and inside `dropdl.app`. Re-check when adding dependencies.
 
 The tools dropdl downloads at runtime (yt-dlp, deno, the GPL ffmpeg build) are not distributed with dropdl and run as separate processes, so they don't affect its license. Bundling any of them in a release would bring their license terms (for ffmpeg: GPL source offer) into that release.

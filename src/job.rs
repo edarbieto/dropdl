@@ -35,15 +35,9 @@ impl AudioFormat {
     }
 }
 
-/// Browsers yt-dlp can read cookies from (label, yt-dlp name).
-pub const BROWSERS: [(&str, &str); 6] = [
-    ("Firefox", "firefox"),
-    ("Chrome", "chrome"),
-    ("Edge", "edge"),
-    ("Brave", "brave"),
-    ("Opera", "opera"),
-    ("Vivaldi", "vivaldi"),
-];
+/// The only browser dropdl reads cookies from (yt-dlp name). Chromium browsers
+/// encrypt cookies so other apps can't read them on Windows (see docs/cookies.md).
+pub const BROWSER: &str = "firefox";
 
 /// Paths to the binaries a download needs.
 #[derive(Clone)]
@@ -223,7 +217,11 @@ pub fn run(
     let args = build_args(req, tools);
     on_event(Event::Log(format!("> yt-dlp {}", args.join(" "))));
 
-    let mut child = command(&tools.ytdlp)
+    let mut cmd = command(&tools.ytdlp);
+    // Own process group, so `kill` reaches the launcher's child too.
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
+    let mut child = cmd
         .args(&args)
         .env("PYTHONUTF8", "1")
         .env("PYTHONIOENCODING", "utf-8")
@@ -273,12 +271,16 @@ fn last_error(lines: &[String]) -> Option<String> {
         .map(|e| e.trim().to_string())
 }
 
-/// Kills a running yt-dlp and its children (the .exe is a launcher that
+/// Kills a running yt-dlp and its children (the executable is a launcher that
 /// spawns the real Python process).
 pub fn kill(pid: u32) {
+    #[cfg(windows)]
     let _ = command("taskkill")
         .args(["/PID", &pid.to_string(), "/T", "/F"])
         .output();
+    // yt-dlp leads its own process group (see `run`): kill the whole group.
+    #[cfg(unix)]
+    let _ = command("kill").args(["-KILL", "--", &format!("-{pid}")]).output();
 }
 
 /// Checks that yt-dlp can read cookies from `browser`; returns how many it found.
@@ -373,9 +375,8 @@ mod e2e {
     use super::*;
     use crate::tools::{self, Tool, ToolState};
 
-    #[test]
-    #[ignore]
-    fn install_and_download() {
+    /// Installs missing tools into the data folder (`DROPDL_HOME`).
+    fn install_tools() -> Tools {
         let found = std::sync::Mutex::new(std::collections::HashMap::new());
         let dirs = crate::paths::resolve();
         let report = |tool: Tool, state: ToolState| {
@@ -389,14 +390,24 @@ mod e2e {
         tools::ensure_all(&dirs.bin, report, |line| println!("{line}"));
         let found = found.into_inner().unwrap();
         assert_eq!(found.len(), Tool::ALL.len(), "some tools are missing");
-        let tools = Tools {
+        Tools {
             ytdlp: found["yt-dlp"].clone(),
             deno: found["deno"].clone(),
             ffmpeg: found["ffmpeg"].parent().unwrap().to_path_buf(),
-        };
-        let out_dir = std::env::var_os("DROPDL_TEST_OUT")
+        }
+    }
+
+    fn out_dir() -> PathBuf {
+        std::env::var_os("DROPDL_TEST_OUT")
             .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::temp_dir().join("dropdl-test"));
+            .unwrap_or_else(|| std::env::temp_dir().join("dropdl-test"))
+    }
+
+    #[test]
+    #[ignore]
+    fn install_and_download() {
+        let tools = install_tools();
+        let out_dir = out_dir();
         let urls = std::env::var("DROPDL_TEST_URLS").unwrap_or_else(|_| {
             "https://www.youtube.com/watch?v=jNQXAC9IVRw https://music.youtube.com/watch?v=jNQXAC9IVRw".into()
         });
@@ -420,5 +431,42 @@ mod e2e {
             assert_eq!(ext, if wants_audio(url, Mode::Auto) { "m4a" } else { "mp4" });
             println!("OK {}", files[0].display());
         }
+    }
+
+    /// Cancelling a long download ends yt-dlp and every process it started.
+    #[test]
+    #[ignore]
+    fn cancel() {
+        let tools = install_tools();
+        let req = Request {
+            url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ".into(),
+            mode: Mode::Video,
+            audio_format: AudioFormat::M4a,
+            out_dir: out_dir(),
+            browser: None,
+        };
+        let pid: Arc<Mutex<Option<u32>>> = Arc::default();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let worker = {
+            let pid = pid.clone();
+            std::thread::spawn(move || {
+                run(&req, &tools, &pid, |e| {
+                    if let Event::Progress { frac: Some(_), .. } = e {
+                        let _ = started_tx.send(());
+                    }
+                })
+            })
+        };
+        started_rx.recv_timeout(std::time::Duration::from_secs(120)).expect("download did not start");
+        let id = pid.lock().unwrap().expect("no pid");
+        kill(id);
+        let result = worker.join().unwrap();
+        assert!(result.is_err(), "{result:?}");
+        #[cfg(unix)]
+        {
+            let left = command("pgrep").args(["-g", &id.to_string()]).output().unwrap();
+            assert!(left.stdout.is_empty(), "still running: {}", String::from_utf8_lossy(&left.stdout));
+        }
+        println!("cancelled: {result:?}");
     }
 }

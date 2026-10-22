@@ -52,4 +52,4 @@ Titles are truncated (`.120B` / `.150B`) to stay within Windows path limits.
 - `--no-mtime`: the file date is the download date, not the upload date.
 - `--ffmpeg-location <dir>` and `--js-runtimes deno:<path>`: always use the validated tools.
 - `--encoding utf-8`: non-ASCII titles and errors are decoded correctly.
-- `--cookies-from-browser <browser>`: only when a browser is connected (see cookies.md).
+- `--cookies-from-browser firefox`: only when Firefox is connected (see cookies.md).

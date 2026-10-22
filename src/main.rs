@@ -18,10 +18,11 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
-use job::{AudioFormat, BROWSERS, Event, Mode, Request};
+use job::{AudioFormat, BROWSER, Event, Mode, Request};
 use tools::{Tool, ToolState};
 
 const LOG_LIMIT: usize = 2000;
+const PASTE_KEY: &str = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
 
 fn main() -> eframe::Result {
     let dirs = paths::resolve();
@@ -56,6 +57,21 @@ impl Default for Settings {
             audio_format: AudioFormat::M4a,
             browser: None,
         }
+    }
+}
+
+impl Settings {
+    /// Fixes values saved by older versions or on another computer.
+    fn repair(mut self) -> Self {
+        // The saved folder may not exist when the app is run from a USB drive on another PC.
+        if !self.out_dir.is_dir() {
+            self.out_dir = Settings::default().out_dir;
+        }
+        // Older versions also offered Chromium browsers.
+        if self.browser.as_deref().is_some_and(|b| b != BROWSER) {
+            self.browser = None;
+        }
+        self
     }
 }
 
@@ -115,14 +131,11 @@ struct App {
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>, dirs: paths::AppDirs) -> Self {
-        let mut settings: Settings = cc
+        let settings = cc
             .storage
-            .and_then(|s| eframe::get_value(s, eframe::APP_KEY))
-            .unwrap_or_default();
-        // The saved folder may not exist when the app is run from a USB drive on another PC.
-        if !settings.out_dir.is_dir() {
-            settings.out_dir = Settings::default().out_dir;
-        }
+            .and_then(|s| eframe::get_value::<Settings>(s, eframe::APP_KEY))
+            .unwrap_or_default()
+            .repair();
         add_fallback_fonts(&cc.egui_ctx);
         let (tx, rx) = channel();
         let mut app = Self {
@@ -298,13 +311,13 @@ impl App {
         });
     }
 
-    fn test_browser(&mut self, ctx: &egui::Context, browser: &str) {
+    fn test_browser(&mut self, ctx: &egui::Context) {
         let Some(ytdlp) = self.tool_path(Tool::YtDlp) else { return };
         self.cookie_check = CookieCheck::Testing;
-        let (tx, ctx, browser) = (self.tx.clone(), ctx.clone(), browser.to_string());
+        let (tx, ctx) = (self.tx.clone(), ctx.clone());
         std::thread::spawn(move || {
-            let result = job::test_cookies(&ytdlp, &browser);
-            let _ = tx.send(Msg::Cookies(browser, result));
+            let result = job::test_cookies(&ytdlp, BROWSER);
+            let _ = tx.send(Msg::Cookies(BROWSER.to_string(), result));
             ctx.request_repaint();
         });
     }
@@ -332,15 +345,12 @@ impl App {
                 let busy = self.jobs.iter().any(|j| matches!(j.status, Status::Running | Status::Processing(_)));
                 if ui
                     .add_enabled(!self.checking && !busy, egui::Button::new("Check updates").small())
-                    .on_hover_text("Re-check tools and update yt-dlp/deno")
+                    .on_hover_text("Re-check tools and update them")
                     .clicked()
                 {
                     self.check_tools(ui.ctx());
                 }
-                let label = match &self.settings.browser {
-                    Some(b) => format!("🍪 {}", browser_label(b)),
-                    None => "Connect browser".to_string(),
-                };
+                let label = if self.settings.browser.is_some() { "🍪 Firefox" } else { "Connect Firefox" };
                 if ui.small_button(label).clicked() {
                     self.show_browser = !self.show_browser;
                 }
@@ -362,22 +372,17 @@ impl App {
 
     fn browser_panel(&mut self, ui: &mut egui::Ui) {
         egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Use your browser's login for sites that need it (Instagram, Facebook, private videos).");
+            ui.label("Use your Firefox login for sites that need it (Instagram, Facebook, private videos).");
             ui.label(
-                egui::RichText::new("Firefox works best. Chromium browsers may need to be closed first.")
+                egui::RichText::new("Log in to the site in Firefox first. Other browsers keep their cookies locked.")
                     .weak()
                     .small(),
             );
-            ui.horizontal_wrapped(|ui| {
+            ui.horizontal(|ui| {
                 let testing = matches!(self.cookie_check, CookieCheck::Testing);
-                for (label, name) in BROWSERS {
-                    let selected = self.settings.browser.as_deref() == Some(name);
-                    if ui
-                        .add_enabled(!testing, egui::Button::selectable(selected, label))
-                        .clicked()
-                    {
-                        self.test_browser(ui.ctx(), name);
-                    }
+                let label = if self.settings.browser.is_some() { "Test again" } else { "Connect" };
+                if ui.add_enabled(!testing, egui::Button::new(label)).clicked() {
+                    self.test_browser(ui.ctx());
                 }
                 if self.settings.browser.is_some() && ui.button("Disconnect").clicked() {
                     self.settings.browser = None;
@@ -407,7 +412,7 @@ impl App {
         ui.horizontal(|ui| {
             let button_w = 90.0;
             let edit = egui::TextEdit::singleline(&mut self.input)
-                .hint_text("Paste a link (Ctrl+V)")
+                .hint_text(format!("Paste a link ({PASTE_KEY})"))
                 .desired_width(ui.available_width() - button_w - ui.spacing().item_spacing.x);
             let resp = ui.add(edit);
             let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -534,7 +539,7 @@ impl eframe::App for App {
         self.handle_messages();
         let ctx = ui.ctx().clone();
 
-        // Ctrl+V anywhere outside the text box downloads the clipboard link right away.
+        // Ctrl+V (⌘V) anywhere outside the text box downloads the clipboard link right away.
         if !ctx.egui_wants_keyboard_input() {
             let pasted = ctx.input(|i| {
                 i.events.iter().find_map(|e| match e {
@@ -569,7 +574,7 @@ impl eframe::App for App {
                     if self.jobs.is_empty() {
                         ui.add_space(20.0);
                         ui.vertical_centered(|ui| {
-                            ui.label(egui::RichText::new("Copy a link and press Ctrl+V here.").weak());
+                            ui.label(egui::RichText::new(format!("Copy a link and press {PASTE_KEY} here.")).weak());
                         });
                     }
                     self.job_list(ui);
@@ -604,30 +609,39 @@ impl eframe::App for App {
     }
 }
 
-/// egui's built-in font has no CJK/Korean glyphs; borrow them from Windows so
-/// titles in those scripts don't render as boxes.
+/// egui's built-in font has no CJK/Korean glyphs; borrow them from the system
+/// so titles in those scripts don't render as boxes.
 fn add_fallback_fonts(ctx: &egui::Context) {
-    let fonts_dir = PathBuf::from(std::env::var_os("WINDIR").unwrap_or("C:\\Windows".into())).join("Fonts");
+    let fonts: Vec<PathBuf> = if cfg!(windows) {
+        let dir = PathBuf::from(std::env::var_os("WINDIR").unwrap_or("C:\\Windows".into())).join("Fonts");
+        ["msyh.ttc", "malgun.ttf"].iter().map(|f| dir.join(f)).collect()
+    } else if cfg!(target_os = "macos") {
+        ["Hiragino Sans GB.ttc", "AppleSDGothicNeo.ttc"]
+            .iter()
+            .map(|f| PathBuf::from("/System/Library/Fonts").join(f))
+            .collect()
+    } else {
+        Vec::new()
+    };
     let mut defs = egui::FontDefinitions::default();
-    for file in ["msyh.ttc", "malgun.ttf"] {
-        let Ok(bytes) = std::fs::read(fonts_dir.join(file)) else { continue };
-        defs.font_data.insert(file.into(), Arc::new(egui::FontData::from_owned(bytes)));
+    for path in fonts {
+        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        defs.font_data.insert(name.clone(), Arc::new(egui::FontData::from_owned(bytes)));
         for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-            defs.families.entry(family).or_default().push(file.into());
+            defs.families.entry(family).or_default().push(name.clone());
         }
     }
     ctx.set_fonts(defs);
 }
 
-fn browser_label(name: &str) -> &str {
-    BROWSERS.iter().find(|(_, n)| *n == name).map_or(name, |(l, _)| l)
-}
-
+/// Opens a folder in Explorer / Finder.
 fn open_path(path: &std::path::Path) {
-    let _ = tools::command("explorer").arg(path).spawn();
+    let program = if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    let _ = tools::command(program).arg(path).spawn();
 }
 
-/// Opens Explorer with `file` selected.
+/// Shows `file` selected in Explorer / Finder.
 fn reveal(file: &std::path::Path) {
     #[cfg(windows)]
     {
@@ -636,6 +650,26 @@ fn reveal(file: &std::path::Path) {
             .raw_arg(format!("/select,\"{}\"", file.display()))
             .spawn();
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    let _ = tools::command("open").arg("-R").arg(file).spawn();
+    #[cfg(not(any(windows, target_os = "macos")))]
     open_path(file.parent().unwrap_or(file));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repair_settings() {
+        let saved = |browser: &str| Settings {
+            out_dir: std::env::temp_dir(),
+            browser: Some(browser.into()),
+            ..Settings::default()
+        };
+        assert_eq!(saved("chrome").repair().browser, None);
+        assert_eq!(saved("firefox").repair().browser.as_deref(), Some("firefox"));
+        let missing = Settings { out_dir: "/no/such/folder".into(), ..Settings::default() };
+        assert_eq!(missing.repair().out_dir, Settings::default().out_dir);
+    }
 }
