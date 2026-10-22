@@ -45,6 +45,8 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 - [docs/cookies.md](docs/cookies.md): the "Connect browser" feature and troubleshooting
 - [docs/testing.md](docs/testing.md): how to test
 - [docs/release.md](docs/release.md): portable release build, size measurements and trade-offs
+- [docs/music-library.md](docs/music-library.md): planned music library mode (YouTube Music)
+- [docs/platforms.md](docs/platforms.md): planned macOS and Linux support
 - [ROADMAP.md](ROADMAP.md): planned work
 
 ## Limitations

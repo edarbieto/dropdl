@@ -23,7 +23,7 @@ src/job.rs     URL classification, yt-dlp argument building, process run + outpu
 src/tools.rs   tool validation, download and update (into the bin dir)
 src/paths.rs   data folders: bin/ and config/ next to the exe (fallback: per-user data dir)
 scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check)
-docs/          architecture, download rules, tooling, cookies, testing, release
+docs/          architecture, download rules, tooling, cookies, testing, release, plans (music-library, platforms)
 ROADMAP.md     planned work
 ```
 
