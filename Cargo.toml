@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "Minimal GUI to download video/audio from a pasted link, powered by yt-dlp"
 repository = "https://github.com/edarbieto/dropdl"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 dirs = "7.0.0"

@@ -47,6 +47,7 @@ Design: [docs/platforms.md](docs/platforms.md).
 
 ## Next
 
+- [ ] Third-party license notices shipped with release builds (see docs/release.md, License notices)
 - [ ] App icon and Windows version metadata
 - [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect a browser
 - [ ] "Retry" button on failed items

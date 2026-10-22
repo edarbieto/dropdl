@@ -59,3 +59,11 @@ Video and audio downloads work as described above. In progress (v0.3): a **music
 - Zoom recordings protected by a passcode are not supported.
 - Some sites block certain networks or require a login. Use **Connect browser** in those cases.
 - Only download content you have the right to download.
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT), at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in dropdl by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+dropdl downloads [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), [deno](https://deno.com) (MIT) and an [ffmpeg](https://github.com/BtbN/FFmpeg-Builds) build (GPL) from their official releases at runtime and runs them as separate programs. They are not part of dropdl and keep their own licenses.
