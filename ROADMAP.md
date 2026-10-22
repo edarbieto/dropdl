@@ -21,14 +21,15 @@
 - [x] Decided: ship variant G (glow, `opt-level = "s"`, `panic = "abort"`, accesskit kept, no UPX by default)
 - [x] Test on a clean machine (Windows Sandbox / VM without the VC++ Redistributable or a GPU driver)
 
-## v0.3 (next): music library mode
+## v0.3 (in progress): music library mode
 
-Design: [docs/music-library.md](docs/music-library.md).
+Design and implementation plan: [docs/music-library.md](docs/music-library.md). **Next up: step 4, writing the tags** (notes in the plan).
 
 - [x] M4A/AAC output without re-encoding (default for all audio), MP3 as an option
+- [x] Album metadata from YouTube Music's internal API: songs (not music videos), track artists, cover, artist discographies (not wired into downloads yet)
+- [x] MusicBrainz matching (disc numbers, original dates, IDs), falling back to YouTube Music data (not wired into downloads yet)
 - [ ] Library layout: `Album Artist/Album (Year)/01 - Title.ext`, plus `cover.jpg` per album
-- [ ] Complete tags written by dropdl (album artist, multi-value artists, track/disc numbers, date) from YouTube Music album data
-- [ ] MusicBrainz matching (disc numbers, full dates, IDs), falling back to YouTube Music data
+- [ ] Complete tags written by dropdl (album artist, multi-value artists, track/disc numbers, date, MusicBrainz IDs)
 - [ ] Embedded square cover (~1200 px JPEG)
 - [ ] Embedded lyrics: synced from LRCLIB, fallback to YouTube Music's plain lyrics
 - [ ] Whole artists: queue every album, single and EP as an album job

@@ -15,6 +15,13 @@ dropdl is a minimal egui desktop app (Windows) that downloads media from a paste
 - **Git:** commit only when the user asks. Never push or rewrite history without explicit permission.
 - **Distribution goal:** a single, portable `.exe` that is as small as possible, and later macOS/Linux builds. Avoid dependencies that need DLLs, installers or platform-specific system libraries (e.g. prefer rustls over OpenSSL). Check the size impact of new dependencies (`docs/release.md`).
 
+## Workflow
+
+- **Plan, then execute.** For anything beyond a small fix, first write a short plan (files to change, tests, docs, open decisions) and wait for the user's go-ahead. Then implement it, run the tests, and update the docs in the same change.
+- **Spike before designing on assumptions.** When behavior of an external service or tool is unknown, check it with a quick experiment and record the result (e.g. `docs/music-library.md`, Spike results).
+- **Ask only when something is unclear** or is a genuine decision (trade-offs, scope, naming the user cares about). Otherwise pick the sensible default, say so, and proceed. Offer a recommended option when asking.
+- **Current work:** see `ROADMAP.md` and the implementation plan in `docs/music-library.md`.
+
 ## Layout
 
 ```

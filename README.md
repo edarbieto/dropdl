@@ -45,9 +45,13 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 - [docs/cookies.md](docs/cookies.md): the "Connect browser" feature and troubleshooting
 - [docs/testing.md](docs/testing.md): how to test
 - [docs/release.md](docs/release.md): portable release build, size measurements and trade-offs
-- [docs/music-library.md](docs/music-library.md): planned music library mode (YouTube Music)
+- [docs/music-library.md](docs/music-library.md): music library mode for YouTube Music (in progress)
 - [docs/platforms.md](docs/platforms.md): planned macOS and Linux support
 - [ROADMAP.md](ROADMAP.md): planned work
+
+## Status
+
+Video and audio downloads work as described above. In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums and whole artists will become a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics and disc numbers, using MusicBrainz when a release matches. The metadata lookup is done; tagging and the folder layout come next. See [ROADMAP.md](ROADMAP.md).
 
 ## Limitations
 

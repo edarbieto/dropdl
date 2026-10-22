@@ -1,6 +1,6 @@
-# Music library mode (planned)
+# Music library mode (in progress)
 
-> Status: design, not implemented yet. Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–3 of the [implementation plan](#implementation-plan) are done: M4A output (shipped) and the album metadata lookup (`src/music.rs`, `src/ytm.rs`, `src/musicbrainz.rs`, not wired into downloads yet). **Next: step 4, tagging.** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -112,7 +112,10 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
 1. **Spikes (no UI):** done, see Spike results below.
 2. **Format:** done. M4A copies the AAC stream (141 if available, else 140), MP3 is the existing re-encode path, and the audio format is a setting (see download-rules.md).
 3. **Metadata module:** done. `src/music.rs` (`Album`/`Track`, link classification, `album()` = YouTube Music + MusicBrainz), `src/ytm.rs` (innertube client and parsers), `src/musicbrainz.rs` (search, matching, `apply`). Offline tests use recorded responses in `tests/fixtures/`; `music::tests::live` checks the live services. Normal playlists are left for step 6.
-4. **Tagging:** after yt-dlp finishes, write the tag schema with `lofty`: embedded cover (square JPEG ~1200 px), lyrics, then `cover.jpg` per album folder. yt-dlp still downloads the audio and the thumbnail. dropdl's tags replace `--embed-metadata` for music.
+4. **Tagging (next):** after yt-dlp finishes, write the tag schema with `lofty`: embedded cover (square JPEG ~1200 px), lyrics, then `cover.jpg` per album folder. dropdl's tags replace `--embed-metadata` for music. Notes for the plan:
+   - Input is the `music::Album` / `music::Track` from step 3. The cover comes from `Album::cover_url` (already 1200 px), downloaded once per album with `ureq`.
+   - `lofty` ([Spike results](#spike-results)): use `ItemKey::UnsyncLyrics` for ID3v2 (`ItemKey::Lyrics` is dropped silently); several artists become ID3v2.4 `TXXX:ARTISTS`. MusicBrainz IDs map to `ItemKey::MusicBrainzReleaseId`, `MusicBrainzReleaseGroupId`, `MusicBrainzRecordingId` and `MusicBrainzReleaseArtistId` (album artist ids, in `MbIds::artists`); the compilation flag to `ItemKey::FlagCompilation`. Track artist ids are parsed (`MbTrack::artists`) but not kept on `Track` yet.
+   - A tagging module with tests that write generated M4A and MP3 files and read the tags back. Lyrics stay empty until step 7.
 5. **Library layout and skip-existing:** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits.
 6. **Collections:** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
 7. **Lyrics:** LRCLIB synced, then LRCLIB plain, then YouTube Music plain lyrics, else none. A lyrics failure never fails the download.
