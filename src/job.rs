@@ -18,6 +18,23 @@ pub enum Mode {
     Audio,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub enum AudioFormat {
+    /// Copies the source's AAC stream when there is one, otherwise converts.
+    #[default]
+    M4a,
+    Mp3,
+}
+
+impl AudioFormat {
+    pub fn label(self) -> &'static str {
+        match self {
+            AudioFormat::M4a => "M4A",
+            AudioFormat::Mp3 => "MP3",
+        }
+    }
+}
+
 /// Browsers yt-dlp can read cookies from (label, yt-dlp name).
 pub const BROWSERS: [(&str, &str); 6] = [
     ("Firefox", "firefox"),
@@ -39,6 +56,7 @@ pub struct Tools {
 pub struct Request {
     pub url: String,
     pub mode: Mode,
+    pub audio_format: AudioFormat,
     pub out_dir: PathBuf,
     pub browser: Option<String>,
 }
@@ -86,7 +104,7 @@ fn is_collection(url: &str) -> bool {
     url.contains("/playlist") || url.contains("/browse/") || (url.contains("list=") && !has_video)
 }
 
-/// Sites that only serve audio; Auto mode turns them into MP3.
+/// Sites that only serve audio; Auto mode downloads them as audio.
 const AUDIO_HOSTS: [&str; 5] = [
     "music.youtube.com",
     "soundcloud.com",
@@ -95,7 +113,7 @@ const AUDIO_HOSTS: [&str; 5] = [
     "audiomack.com",
 ];
 
-/// Whether this request ends up as MP3.
+/// Whether this request ends up as audio only.
 pub fn wants_audio(url: &str, mode: Mode) -> bool {
     match mode {
         Mode::Audio => true,
@@ -132,7 +150,12 @@ pub fn build_args(req: &Request, tools: &Tools) -> Vec<String> {
     }
 
     if audio {
-        push(&["-t", "mp3", "--audio-quality", "0", "--embed-metadata", "--embed-thumbnail"]);
+        match req.audio_format {
+            // m4a keeps an AAC source as is (YouTube's 140/141); anything else is converted.
+            AudioFormat::M4a => push(&["-f", "ba[acodec^=mp4a]/ba/b", "-x", "--audio-format", "m4a"]),
+            AudioFormat::Mp3 => push(&["-t", "mp3", "--audio-quality", "0"]),
+        }
+        push(&["--embed-metadata", "--embed-thumbnail"]);
         if music {
             // YouTube Music covers are 16:9 frames with the art in the middle: crop to square.
             push(&[
@@ -305,6 +328,27 @@ mod tests {
     }
 
     #[test]
+    fn audio_args() {
+        let tools = Tools { ytdlp: "y".into(), deno: "d".into(), ffmpeg: "f".into() };
+        let args = |audio_format| {
+            let req = Request {
+                url: "https://music.youtube.com/watch?v=abc".into(),
+                mode: Mode::Auto,
+                audio_format,
+                out_dir: "o".into(),
+                browser: None,
+            };
+            build_args(&req, &tools).join(" ")
+        };
+        let m4a = args(AudioFormat::M4a);
+        assert!(m4a.contains("-f ba[acodec^=mp4a]/ba/b -x --audio-format m4a --embed-metadata --embed-thumbnail"));
+        assert!(!m4a.contains("mp3"));
+        let mp3 = args(AudioFormat::Mp3);
+        assert!(mp3.contains("-t mp3 --audio-quality 0 --embed-metadata --embed-thumbnail"));
+        assert!(!mp3.contains("m4a"));
+    }
+
+    #[test]
     fn progress_line() {
         match parse_line("[dl]500|1000|2|10|Some | title") {
             Event::Progress { frac, item, title } => {
@@ -322,7 +366,7 @@ mod tests {
 }
 
 /// End-to-end check: installs missing tools and downloads a short public video
-/// as MP4 and as MP3. Needs network. Run with:
+/// as MP4 and as M4A. Needs network. Run with:
 /// `cargo test -- --ignored --nocapture` (set DROPDL_TEST_OUT to choose the folder).
 #[cfg(test)]
 mod e2e {
@@ -357,7 +401,13 @@ mod e2e {
             "https://www.youtube.com/watch?v=jNQXAC9IVRw https://music.youtube.com/watch?v=jNQXAC9IVRw".into()
         });
         for url in urls.split_whitespace() {
-            let req = Request { url: url.into(), mode: Mode::Auto, out_dir: out_dir.clone(), browser: None };
+            let req = Request {
+                url: url.into(),
+                mode: Mode::Auto,
+                audio_format: AudioFormat::M4a,
+                out_dir: out_dir.clone(),
+                browser: None,
+            };
             let mut files = Vec::new();
             let result = run(&req, &tools, &Arc::default(), |e| match e {
                 Event::Done(p) => files.push(p),
@@ -367,7 +417,7 @@ mod e2e {
             assert!(result.is_ok(), "{url}: {result:?}");
             assert_eq!(files.len(), 1, "{url}");
             let ext = files[0].extension().unwrap().to_string_lossy().to_string();
-            assert_eq!(ext, if wants_audio(url, Mode::Auto) { "mp3" } else { "mp4" });
+            assert_eq!(ext, if wants_audio(url, Mode::Auto) { "m4a" } else { "mp4" });
             println!("OK {}", files[0].display());
         }
     }

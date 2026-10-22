@@ -8,15 +8,15 @@ Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it use
 
 - **Paste and go:** pressing Ctrl+V anywhere in the window queues the link right away. You can also type or paste into the box and press Enter.
 - **Smart format choice (Auto mode):**
-  - YouTube Music, SoundCloud, Bandcamp, Mixcloud and Audiomack links become **MP3** (best VBR quality, with cover art and tags).
+  - YouTube Music, SoundCloud, Bandcamp, Mixcloud and Audiomack links become **M4A** (the original AAC audio, without re-encoding, with cover art and tags). MP3 is available as an option.
   - Everything else (YouTube, TikTok, Instagram, Facebook, Zoom, X, Vimeo, …) becomes **MP4 with H.264 + AAC**, which plays almost anywhere.
   - YouTube Music albums and playlists are saved to their own folder with numbered tracks.
-  - You can force **Video (MP4)** or **Audio (MP3)** instead.
+  - You can force **Video (MP4)** or **Audio** instead.
 - **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, downloads whatever is missing, and updates yt-dlp and deno when a new release exists.
 - **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive.
 - **Connect browser:** reuses your browser's login cookies for sites that need a session (Instagram, Facebook, private or age-restricted videos).
 - Sequential download queue with progress, cancel, and "show in folder".
-- Remembers the output folder, mode and connected browser.
+- Remembers the output folder, mode, audio format and connected browser.
 
 ## Usage
 

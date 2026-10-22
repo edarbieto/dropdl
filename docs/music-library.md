@@ -8,7 +8,7 @@ Goal: YouTube Music songs, albums and whole artists become a clean local music l
 
 | Option | How | Notes |
 |---|---|---|
-| **M4A / AAC** (default for music) | copy YouTube Music's AAC stream (format 140, 128 kbps; 141, 256 kbps, needs a Premium session) | no re-encode, no quality loss |
+| **M4A / AAC** (default) | copy YouTube Music's AAC stream (format 140, 128 kbps; 141, 256 kbps, needs a Premium session) | no re-encode, no quality loss |
 | MP3 | re-encode, best VBR (`--audio-quality 0`) | maximum compatibility, lossy-to-lossy |
 | Opus (maybe later) | copy the Opus stream (~160 kbps) | best source quality, weaker support in some car/hardware players |
 
@@ -106,7 +106,7 @@ Kept to the minimum:
 Each step ends with `cargo test` green and the docs updated (`download-rules.md` follows `job.rs`).
 
 1. **Spikes (no UI):** done, see Spike results below.
-2. **Format:** M4A by copying the AAC stream (prefer 141 if available, else 140), MP3 as the existing re-encode path. Add the audio-format setting.
+2. **Format:** done. M4A copies the AAC stream (141 if available, else 140), MP3 is the existing re-encode path, and the audio format is a setting (see download-rules.md).
 3. **Metadata module** (new `src/music.rs`): YouTube Music client (album, artist releases, playlist), normalized `Track`/`Album` structs, and offline tests with recorded JSON fixtures (no personal data). Then MusicBrainz matching on top, with fixture tests for a match, a multi-disc match and no match.
 4. **Tagging:** after yt-dlp finishes, write the tag schema with `lofty`: embedded cover (square JPEG ~1200 px), lyrics, then `cover.jpg` per album folder. yt-dlp still downloads the audio and the thumbnail. dropdl's tags replace `--embed-metadata` for music.
 5. **Library layout and skip-existing:** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits.

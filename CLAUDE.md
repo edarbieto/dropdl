@@ -10,7 +10,7 @@ dropdl is a minimal egui desktop app (Windows) that downloads media from a paste
 
 - **Keep it simple and minimal.** One window, few controls, few dependencies. Before adding a setting, ask whether a good default would do.
 - **UI text is in English.**
-- **Compatibility first:** video → MP4 (H.264 + AAC), audio → MP3. Rules live in `src/job.rs` and are documented in `docs/download-rules.md`. Keep the two in sync.
+- **Compatibility first:** video → MP4 (H.264 + AAC), audio → M4A (AAC copied without re-encoding) or MP3. Rules live in `src/job.rs` and are documented in `docs/download-rules.md`. Keep the two in sync.
 - **Never put personal or machine-specific information** (user names, absolute home paths, emails, installed apps) in code, docs or test fixtures. Use placeholders such as `%LOCALAPPDATA%`.
 - **Git:** commit only when the user asks. Never push or rewrite history without explicit permission.
 - **Distribution goal:** a single, portable `.exe` that is as small as possible, and later macOS/Linux builds. Avoid dependencies that need DLLs, installers or platform-specific system libraries (e.g. prefer rustls over OpenSSL). Check the size impact of new dependencies (`docs/release.md`).

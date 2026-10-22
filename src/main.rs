@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
-use job::{BROWSERS, Event, Mode, Request};
+use job::{AudioFormat, BROWSERS, Event, Mode, Request};
 use tools::{Tool, ToolState};
 
 const LOG_LIMIT: usize = 2000;
@@ -34,6 +34,7 @@ fn main() -> eframe::Result {
 struct Settings {
     out_dir: PathBuf,
     mode: Mode,
+    audio_format: AudioFormat,
     /// yt-dlp browser name to read cookies from, if connected.
     browser: Option<String>,
 }
@@ -45,6 +46,7 @@ impl Default for Settings {
                 .or_else(dirs::home_dir)
                 .unwrap_or_else(|| PathBuf::from(".")),
             mode: Mode::Auto,
+            audio_format: AudioFormat::M4a,
             browser: None,
         }
     }
@@ -72,6 +74,7 @@ struct Job {
     id: usize,
     url: String,
     mode: Mode,
+    audio_format: AudioFormat,
     status: Status,
     title: String,
     frac: Option<f32>,
@@ -178,6 +181,7 @@ impl App {
                 id: self.next_id,
                 url,
                 mode: self.settings.mode,
+                audio_format: self.settings.audio_format,
                 status: Status::Queued,
                 title: String::new(),
                 frac: None,
@@ -272,6 +276,7 @@ impl App {
         let req = Request {
             url: j.url.clone(),
             mode: j.mode,
+            audio_format: j.audio_format,
             out_dir: self.settings.out_dir.clone(),
             browser: self.settings.browser.clone(),
         };
@@ -415,9 +420,16 @@ impl App {
         ui.horizontal(|ui| {
             ui.label("Mode:");
             ui.radio_value(&mut self.settings.mode, Mode::Auto, "Auto")
-                .on_hover_text("YouTube Music → MP3, everything else → MP4");
+                .on_hover_text("Audio sites (YouTube Music, SoundCloud, …) → audio, everything else → MP4");
             ui.radio_value(&mut self.settings.mode, Mode::Video, "Video (MP4)");
-            ui.radio_value(&mut self.settings.mode, Mode::Audio, "Audio (MP3)");
+            ui.radio_value(&mut self.settings.mode, Mode::Audio, "Audio");
+        });
+        ui.horizontal(|ui| {
+            ui.label("Audio:");
+            ui.radio_value(&mut self.settings.audio_format, AudioFormat::M4a, "M4A")
+                .on_hover_text("Keeps the original AAC audio when possible (no quality loss)");
+            ui.radio_value(&mut self.settings.audio_format, AudioFormat::Mp3, "MP3")
+                .on_hover_text("Re-encoded, for players that don't support M4A");
         });
         ui.horizontal(|ui| {
             ui.label("Save to:");
@@ -445,7 +457,7 @@ impl App {
         for j in &mut self.jobs {
             ui.horizontal(|ui| {
                 let name = if j.title.is_empty() { j.url.as_str() } else { j.title.as_str() };
-                let kind = if job::wants_audio(&j.url, j.mode) { "MP3" } else { "MP4" };
+                let kind = if job::wants_audio(&j.url, j.mode) { j.audio_format.label() } else { "MP4" };
                 let item = j.item.map(|(i, n)| format!(" [{i}/{n}]")).unwrap_or_default();
 
                 let active = matches!(j.status, Status::Running | Status::Processing(_));

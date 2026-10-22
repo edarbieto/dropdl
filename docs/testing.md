@@ -17,7 +17,7 @@ cargo test -- --ignored --nocapture
 `job::e2e::install_and_download`:
 
 1. Runs `tools::ensure_all`, which installs any missing tools into the data folder's `bin/`. By default that is next to the test binary (`target/debug/deps/bin`); set `DROPDL_HOME` to reuse an existing folder.
-2. Downloads each test URL in Auto mode, then checks that exactly one file is produced with the expected extension (`.mp3` for audio sites, `.mp4` otherwise).
+2. Downloads each test URL in Auto mode, then checks that exactly one file is produced with the expected extension (`.m4a` for audio sites, `.mp4` otherwise).
 
 Environment variables:
 
@@ -44,7 +44,8 @@ cargo test -- --ignored --nocapture
 - [ ] Run from a read-only folder: data falls back to the per-user folder (first Log line).
 - [ ] Ctrl+V with a link (focus outside the text box) starts the download immediately.
 - [ ] Ctrl+V with non-link text puts it in the text box instead.
-- [ ] A YouTube Music song gives one MP3 with a square cover; an album gives a folder with numbered tracks.
+- [ ] A YouTube Music song gives one M4A with a square cover, and the Log shows "Not converting audio"; an album gives a folder with numbered tracks.
+- [ ] With Audio: MP3, the same song gives one MP3 with a square cover.
 - [ ] A YouTube video inside a playlist gives only that video.
 - [ ] Cancel stops the download (no leftover yt-dlp process in Task Manager).
 - [ ] Clicking a finished item reveals the file in Explorer.

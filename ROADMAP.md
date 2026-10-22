@@ -25,7 +25,7 @@
 
 Design: [docs/music-library.md](docs/music-library.md).
 
-- [ ] M4A/AAC output without re-encoding (default for YouTube Music), MP3 as an option
+- [x] M4A/AAC output without re-encoding (default for all audio), MP3 as an option
 - [ ] Library layout: `Album Artist/Album (Year)/01 - Title.ext`, plus `cover.jpg` per album
 - [ ] Complete tags written by dropdl (album artist, multi-value artists, track/disc numbers, date) from YouTube Music album data
 - [ ] MusicBrainz matching (disc numbers, full dates, IDs), falling back to YouTube Music data

@@ -6,9 +6,11 @@ The goal is one good default per link: the file should play on Windows, phones, 
 
 | Mode | Result |
 |---|---|
-| Auto (default) | MP3 if the host is an audio site, otherwise MP4 |
+| Auto (default) | audio if the host is an audio site, otherwise MP4 |
 | Video (MP4) | always MP4 |
-| Audio (MP3) | always MP3 (extracts the audio track) |
+| Audio | always audio (extracts the audio track) |
+
+The audio format is a separate setting: **M4A** (default) or **MP3**. It applies to every audio download.
 
 Audio sites (`AUDIO_HOSTS` in `src/job.rs`): `music.youtube.com`, `soundcloud.com`, `bandcamp.com` (including `*.bandcamp.com`), `mixcloud.com`, `audiomack.com`.
 
@@ -16,11 +18,14 @@ Audio sites (`AUDIO_HOSTS` in `src/job.rs`): `music.youtube.com`, `soundcloud.co
 
 Uses yt-dlp's `-t mp4` preset, which prefers H.264 video and AAC audio and merges/remuxes into MP4. Metadata is embedded with `--embed-metadata`.
 
-## Audio: MP3
+## Audio: M4A or MP3
 
-`-t mp3 --audio-quality 0` gives MP3 at the best VBR quality, plus `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail is cropped to a square so it looks like album art.
+| Format | Flags | Result |
+|---|---|---|
+| M4A (default) | `-f "ba[acodec^=mp4a]/ba/b" -x --audio-format m4a` | prefers an AAC stream and copies it without re-encoding (YouTube's 140, or 141 with a Premium session; SoundCloud's `hls_aac`). Sources without AAC are converted to AAC |
+| MP3 | `-t mp3 --audio-quality 0` | MP3 at the best VBR quality. Re-encodes unless the source is MP3. For players that don't support M4A |
 
-MP3 was chosen over M4A for maximum compatibility, even though it re-encodes.
+Both add `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail is cropped to a square so it looks like album art.
 
 ## Single item vs. collection
 
@@ -34,9 +39,11 @@ A link counts as a **collection** (`is_collection`) when it contains `/playlist`
 |---|---|
 | Video | `Title [id].mp4` |
 | Video playlist | `Playlist/001 - Title.mp4` |
-| YouTube Music song | `Artist - Title.mp3` |
-| Album / audio playlist | `Album/01 - Title.mp3` (track number set from playlist index) |
-| Other audio | `Title.mp3` |
+| YouTube Music song | `Artist - Title.m4a` |
+| Album / audio playlist | `Album/01 - Title.m4a` (track number set from playlist index) |
+| Other audio | `Title.m4a` |
+
+Audio files end in `.mp3` instead when the MP3 format is selected.
 
 Titles are truncated (`.120B` / `.150B`) to stay within Windows path limits.
 
