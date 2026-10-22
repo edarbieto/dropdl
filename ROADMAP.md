@@ -28,6 +28,7 @@ Design: [docs/music-library.md](docs/music-library.md).
 - [ ] M4A/AAC output without re-encoding (default for YouTube Music), MP3 as an option
 - [ ] Library layout: `Album Artist/Album (Year)/01 - Title.ext`, plus `cover.jpg` per album
 - [ ] Complete tags written by dropdl (album artist, multi-value artists, track/disc numbers, date) from YouTube Music album data
+- [ ] MusicBrainz matching (disc numbers, full dates, IDs), falling back to YouTube Music data
 - [ ] Embedded square cover (~1200 px JPEG)
 - [ ] Embedded lyrics: synced from LRCLIB, fallback to YouTube Music's plain lyrics
 - [ ] Whole artists: queue every album, single and EP as an album job
