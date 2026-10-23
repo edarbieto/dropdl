@@ -20,9 +20,29 @@ const RESERVED: [&str; 22] = [
 ];
 
 /// Whether a request goes through library mode: audio from a YouTube Music
-/// song, album or album playlist. Artists and playlists come later.
+/// song, album, album playlist or artist. Playlists come later.
 pub fn handles(url: &str, mode: Mode) -> bool {
-    job::wants_audio(url, mode) && matches!(music::classify(url), Some(Link::Song(_) | Link::Album(_) | Link::AlbumPlaylist(_)))
+    job::wants_audio(url, mode)
+        && matches!(music::classify(url), Some(Link::Song(_) | Link::Album(_) | Link::AlbumPlaylist(_) | Link::Artist(_)))
+}
+
+/// Album links of an artist's releases, newest first as on the artist page.
+fn release_links(artist: &ytm::Artist) -> Result<Vec<String>, String> {
+    if artist.releases.is_empty() {
+        return Err("No albums or singles found for this artist".into());
+    }
+    Ok(artist.releases.iter().map(|id| format!("https://music.youtube.com/browse/{id}")).collect())
+}
+
+/// Queues every album, single and EP of an artist as its own album job.
+fn queue_artist(channel: &str, on_event: &mut impl FnMut(Event)) -> Result<(), String> {
+    on_event(Event::Processing("Looking up releases".into()));
+    let artist = ytm::Client::new().artist(channel)?;
+    on_event(Event::Progress { frac: None, item: None, title: artist.name.clone() });
+    let links = release_links(&artist)?;
+    on_event(Event::Log(format!("{}: queued {} releases", artist.name, links.len())));
+    on_event(Event::Enqueue(links));
+    Ok(())
 }
 
 /// A file or folder name that every platform accepts: characters Windows
@@ -101,6 +121,9 @@ pub fn run(
     mut on_event: impl FnMut(Event),
 ) -> Result<(), String> {
     let link = music::classify(&req.url).ok_or("not a YouTube Music link")?;
+    if let Link::Artist(channel) = &link {
+        return queue_artist(channel, &mut on_event);
+    }
     on_event(Event::Processing("Looking up album".into()));
     let lines = RefCell::new(Vec::new());
     let found = lookup(&link, &|line| lines.borrow_mut().push(line));
@@ -289,8 +312,22 @@ mod tests {
         assert!(handles("https://music.youtube.com/playlist?list=OLAK5uy_abc", Mode::Auto));
         assert!(handles("https://music.youtube.com/browse/MPREb_K8qWMWVqXGi", Mode::Auto));
         assert!(!handles("https://music.youtube.com/playlist?list=PL123", Mode::Auto));
-        assert!(!handles("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Mode::Auto));
+        assert!(handles("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Mode::Auto));
+        assert!(!handles("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Mode::Video));
         assert!(!handles("https://www.youtube.com/watch?v=zKSsP2084nU", Mode::Audio));
+    }
+
+    #[test]
+    fn artist_links() {
+        let artist = ytm::Artist { name: "A".into(), releases: vec!["MPREb_1".into(), "MPREb_2".into()] };
+        assert_eq!(
+            release_links(&artist).unwrap(),
+            ["https://music.youtube.com/browse/MPREb_1", "https://music.youtube.com/browse/MPREb_2"]
+        );
+        // Every queued link goes through library mode again.
+        assert!(release_links(&artist).unwrap().iter().all(|l| handles(l, Mode::Auto)));
+        let empty = ytm::Artist { name: "A".into(), releases: Vec::new() };
+        assert_eq!(release_links(&empty).unwrap_err(), "No albums or singles found for this artist");
     }
 
     #[test]
@@ -358,5 +395,80 @@ mod e2e {
         assert_eq!(run_once(), std::slice::from_ref(&path));
         assert!(logs.iter().any(|l| l.starts_with("exists, skipped")));
         println!("OK {}", path.display());
+    }
+
+    /// Release links an artist link queues.
+    fn queued(channel: &str) -> Vec<String> {
+        let mut links = Vec::new();
+        let req = Request {
+            url: format!("https://music.youtube.com/channel/{channel}"),
+            mode: Mode::Auto,
+            audio_format: AudioFormat::M4a,
+            out_dir: "unused".into(),
+            browser: None,
+            template: None,
+        };
+        let tools = Tools { ytdlp: "unused".into(), deno: "unused".into(), ffmpeg: "unused".into() };
+        let result = run(&req, &tools, &Arc::default(), &AtomicBool::new(false), |e| match e {
+            Event::Enqueue(l) => links = l,
+            Event::Log(l) => println!("{l}"),
+            _ => {}
+        });
+        assert!(result.is_ok(), "{result:?}");
+        links
+    }
+
+    /// Downloads a release link into the library; returns the files.
+    fn download_release(tools: &Tools, url: &str, out_dir: &Path) -> Vec<PathBuf> {
+        let req = Request {
+            url: url.into(),
+            mode: Mode::Auto,
+            audio_format: AudioFormat::M4a,
+            out_dir: out_dir.into(),
+            browser: None,
+            template: None,
+        };
+        let mut files = Vec::new();
+        let result = run(&req, tools, &Arc::default(), &AtomicBool::new(false), |e| match e {
+            Event::Done(p) => files.push(p),
+            Event::Log(l) => println!("{l}"),
+            _ => {}
+        });
+        assert!(result.is_ok(), "{url}: {result:?}");
+        files
+    }
+
+    /// Two small artists: Downface (2 albums; *Within* is downloaded whole, 9
+    /// tracks) and Glassjaw (3 albums, an EP and singles; one single is downloaded).
+    #[test]
+    #[ignore]
+    fn artist() {
+        let tools = crate::job::e2e::install_tools();
+        let out_dir = crate::job::e2e::out_dir().join("library");
+
+        let downface = queued("UCsbXa5iHrOr6eJN3ethzUKg");
+        assert!(downface.len() >= 2, "{downface:?}");
+        let mut yt = ytm::Client::new();
+        let kind = |yt: &mut ytm::Client, url: &str| {
+            let id = url.rsplit('/').next().unwrap();
+            yt.album(id).map(|a| (a.kind, a.title)).unwrap()
+        };
+        let within = downface.iter().find(|u| kind(&mut yt, u).1 == "Within").expect("Within not queued");
+        let dir = out_dir.join("Downface/Within (2002)");
+        let _ = std::fs::remove_dir_all(&dir);
+        let files = download_release(&tools, within, &out_dir);
+        assert_eq!(files.len(), 9);
+        assert!(files.iter().all(|f| f.starts_with(&dir) && f.exists()));
+        assert!(dir.join("09 - Chavez.m4a").exists() && dir.join("cover.jpg").exists());
+
+        let glassjaw = queued("UC7u7YhIifuby0fhcU3f4AjQ");
+        let kinds: Vec<_> = glassjaw.iter().map(|u| (u.clone(), kind(&mut yt, u).0)).collect();
+        assert!(kinds.iter().filter(|(_, k)| *k == music::ReleaseKind::Album).count() >= 3, "{glassjaw:?}");
+        assert!(kinds.iter().any(|(_, k)| *k == music::ReleaseKind::Ep));
+        let (single, _) = kinds.iter().find(|(_, k)| *k == music::ReleaseKind::Single).expect("no single");
+        let files = download_release(&tools, single, &out_dir);
+        assert_eq!(files.len(), 1);
+        assert!(files[0].starts_with(out_dir.join("Glassjaw")), "{}", files[0].display());
+        println!("OK {} and {}", dir.display(), files[0].display());
     }
 }

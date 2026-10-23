@@ -1,6 +1,6 @@
 # Architecture
 
-dropdl is a single binary. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. `main.rs`, `tools.rs` and `job.rs` are shown below. `library.rs` runs music library downloads (YouTube Music songs and albums): `music.rs`, `ytm.rs` and `musicbrainz.rs` look up the album, `job.rs` downloads each track, and `tags.rs` writes the tags (see music-library.md).
+dropdl is a single binary. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. `main.rs`, `tools.rs` and `job.rs` are shown below. `library.rs` runs music library downloads (YouTube Music songs, albums and artists): `music.rs`, `ytm.rs` and `musicbrainz.rs` look up the album, `job.rs` downloads each track, and `tags.rs` writes the tags (see music-library.md).
 
 ```
 ┌──────────── main.rs (UI thread) ─────────────┐
@@ -31,7 +31,7 @@ Cancel sets the job's shared `cancel` flag and kills the running yt-dlp; `librar
 | Msg | Sent by | Effect |
 |---|---|---|
 | `Tool(tool, state)` | tools thread | updates the indicator, logs version/path |
-| `Job(id, event)` | job thread | progress / title / produced files / log |
+| `Job(id, event)` | job thread | progress / title / produced files / log; `Event::Enqueue` (artist jobs) queues release jobs with the same mode and audio format |
 | `JobEnd(id, result)` | job thread | final status |
 | `Cookies(browser, result)` | cookie test thread | connects Firefox if cookies were read |
 | `Log(line)` | tools thread | appends to the Log (update notices, download failures) |

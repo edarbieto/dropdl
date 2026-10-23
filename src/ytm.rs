@@ -13,6 +13,12 @@ const CLIENT_VERSION: &str = "1.20261014.01.00";
 /// Discography pages followed at most (100 releases each).
 const MAX_PAGES: usize = 20;
 
+/// An artist's name and releases (albums, singles and EPs) as browse ids.
+pub struct Artist {
+    pub name: String,
+    pub releases: Vec<String>,
+}
+
 pub struct Client {
     agent: ureq::Agent,
     /// Anonymous session id from the first response. Continuations need it.
@@ -86,10 +92,12 @@ impl Client {
         Ok(parse_song_album(&page, video_id))
     }
 
-    /// Every album, single and EP of an artist, as browse ids.
-    pub fn artist_releases(&mut self, channel_id: &str) -> Result<Vec<String>, String> {
+    /// An artist with every album, single and EP.
+    pub fn artist(&mut self, channel_id: &str) -> Result<Artist, String> {
+        let page = self.browse(channel_id)?;
+        let name = artist_name(&page);
         let mut ids = Vec::new();
-        for shelf in parse_artist(&self.browse(channel_id)?) {
+        for shelf in parse_artist(&page) {
             let Some((browse_id, params)) = shelf.more else {
                 ids.extend(shelf.ids);
                 continue;
@@ -104,7 +112,7 @@ impl Client {
         }
         let mut seen = std::collections::HashSet::new();
         ids.retain(|id| seen.insert(id.clone()));
-        Ok(ids)
+        Ok(Artist { name, releases: ids })
     }
 }
 
@@ -299,6 +307,11 @@ struct Shelf {
     ids: Vec<String>,
 }
 
+/// The name in an artist page's header (`musicImmersiveHeaderRenderer` or another kind).
+fn artist_name(page: &Value) -> String {
+    page["header"].as_object().and_then(|h| h.values().next()).map(|h| text(&h["title"])).unwrap_or_default()
+}
+
 fn parse_artist(page: &Value) -> Vec<Shelf> {
     let sections = page["contents"]["singleColumnBrowseResultsRenderer"]["tabs"][0]["tabRenderer"]["content"]["sectionListRenderer"]["contents"]
         .as_array()
@@ -438,7 +451,10 @@ mod tests {
 
     #[test]
     fn artist_discography() {
-        let shelves = parse_artist(&fixture("ytm_artist"));
+        let page = fixture("ytm_artist");
+        assert_eq!(artist_name(&page), "Daft Punk");
+        assert_eq!(artist_name(&serde_json::json!({})), "");
+        let shelves = parse_artist(&page);
         assert_eq!(shelves.len(), 2);
         assert!(shelves.iter().all(|s| s.more.as_ref().is_some_and(|(id, _)| id.starts_with("MPAD"))));
         let (ids, next) = parse_grid(&fixture("ytm_discography"));

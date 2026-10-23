@@ -158,7 +158,7 @@ pub fn album_ids(yt: &mut ytm::Client, link: &Link) -> Result<Vec<String>, Strin
     match link {
         Link::Album(id) => Ok(vec![id.clone()]),
         Link::AlbumPlaylist(list) => yt.album_for_playlist(list).map(|id| vec![id]),
-        Link::Artist(channel) => yt.artist_releases(channel),
+        Link::Artist(channel) => yt.artist(channel).map(|a| a.releases),
         Link::Song(video) => match yt.song_album(video)? {
             Some(id) => Ok(vec![id]),
             None => Err("YouTube Music: this song is not part of an album".into()),

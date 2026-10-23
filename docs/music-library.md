@@ -1,6 +1,6 @@
 # Music library mode (in progress)
 
-> Status: steps 1–5 of the [implementation plan](#implementation-plan) are done. YouTube Music songs and albums are downloaded into the library layout with dropdl's tags and cover (`src/library.rs`); artists and playlists still use the plain yt-dlp download. Lyrics come in step 7. **Next: step 6, collections (artists, playlists).** Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–5 and 6a of the [implementation plan](#implementation-plan) are done. YouTube Music songs, albums and artists are downloaded into the library layout with dropdl's tags and cover (`src/library.rs`); playlists still use the plain yt-dlp download. Lyrics come in step 7. **Next: step 6b, playlists (spike first).** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -88,6 +88,8 @@ Lyrics sources, in order:
 
 yt-dlp can't structure an artist page by album (it mixes everything into "Songs"), so dropdl lists the artist's releases through the internal API and queues each album.
 
+Known limit: a single that is also on an album is downloaded twice, once in its own folder (`Artist/Single (Year)/01 - Title.ext`) and once in the album. Most library tools do the same; filtering would mean comparing tracks across releases.
+
 ## Existing tracks are skipped before downloading
 
 Album data (album artist, album, year, track and disc numbers, title) is known before any audio is fetched, so dropdl computes each track's final path first. If that file already exists, the track is skipped and not downloaded. Downloading an artist or album again only fetches what is missing.
@@ -122,7 +124,9 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
    - A song link downloads only that track, into its album's folder. The lookup takes a few seconds (MusicBrainz allows 1 request per second).
    - If the lookup fails (API error, or a music video without an album), the link is downloaded the plain way and the Log says why.
    - Failed or unavailable tracks don't stop the album: the job ends as failed with "N of M tracks failed" and keeps the other tracks. Pasting the link again downloads only what is missing.
-6. **Collections (next):** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
+6. **Collections**, split in two:
+   - **6a. Artists:** done. An artist link (audio mode) becomes one album job per release: `library::run` reads the artist page (`ytm::Client::artist`: name, "Albums" and "Singles & EPs", paginated discography pages) and sends `Event::Enqueue` with a `browse/MPREb_…` link per release, newest first as on the artist page. The UI queues them with the artist job's mode and audio format and shows "✔ Artist — N releases queued". A channel without releases fails with "No albums or singles found for this artist" (no plain yt-dlp fallback: it would mix everything into one folder).
+   - **6b. Playlists (next):** album layout or playlist folder. Spike first: `parse_playlist` reads only the first page (no continuations), music videos in a playlist have no album, and a playlist with tracks from many albums needs one MusicBrainz lookup per album. Decide whether the playlist-folder setting is needed.
 7. **Lyrics:** LRCLIB synced, then LRCLIB plain, then YouTube Music plain lyrics, else none. A lyrics failure never fails the download.
 8. **UI and progress:** show artist/album jobs as "N of M tracks, K skipped". Update the manual checklist in `docs/testing.md`.
 
@@ -163,6 +167,16 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 - Normal playlists: each item's third column links to its album, but only for audio tracks. Playlists made of music videos have no album links.
 - Discography pages are paginated (100 releases per page, 258 releases for Bob Dylan). The continuation (`browse` with `continuation`) only works with the `visitorData` of the first response, sent as `context.client.visitorData` and `X-Goog-Visitor-Id`. dropdl keeps it in memory only.
 - "Various Artists" albums have an unlinked "Various Artists" as the album artist, and the track artists in the track list.
+- Artist pages of small artists (checked October 2026) use the same `musicImmersiveHeaderRenderer` header as large ones; the name is its `title`. A "Singles & EPs" shelf with few items has no "more" button, so its items are read from the artist page itself.
+
+**Test artists** (small discographies, for e2e tests and manual checks; counts from October 2026):
+
+| Artist | Channel | Releases | MusicBrainz |
+|---|---|---|---|
+| Downface | `UCsbXa5iHrOr6eJN3ethzUKg` | 2 albums (*Confidence* 1998, 12 tracks; *Within* 2002, 9 tracks), no singles or EPs | both albums match |
+| Glassjaw | `UC7u7YhIifuby0fhcU3f4AjQ` | 3 albums, 1 EP (*Coloring Book*), 2 singles (*shira*, *El Mark*) | the *shira* single has no match |
+
+Larger options: Quicksand (5 albums, 10 singles/EPs), Will Haven (8 albums, 7 singles).
 
 **LRCLIB** (`GET /api/get?artist_name&track_name&album_name&duration`):
 - Matches with a duration tolerance of about ±2 s, also without an album name. Returns 404 (`TrackNotFound`) on a miss.

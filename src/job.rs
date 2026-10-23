@@ -73,6 +73,8 @@ pub enum Event {
     Processing(String),
     Done(PathBuf),
     Log(String),
+    /// Links to queue as new jobs with the same settings (an artist's releases).
+    Enqueue(Vec<String>),
 }
 
 /// Returns a normalized URL if `text` looks like a single link.

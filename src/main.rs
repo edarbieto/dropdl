@@ -102,6 +102,8 @@ struct Job {
     frac: Option<f32>,
     item: Option<(u32, u32)>,
     files: Vec<PathBuf>,
+    /// Release jobs an artist job added.
+    queued: usize,
     pid: Arc<Mutex<Option<u32>>>,
     cancel: Arc<AtomicBool>,
 }
@@ -194,24 +196,29 @@ impl App {
         let Some(url) = job::parse_url(text) else {
             return false;
         };
+        self.push_job(url, self.settings.mode, self.settings.audio_format);
+        true
+    }
+
+    fn push_job(&mut self, url: String, mode: Mode, audio_format: AudioFormat) {
         self.jobs.insert(
             0,
             Job {
                 id: self.next_id,
                 url,
-                mode: self.settings.mode,
-                audio_format: self.settings.audio_format,
+                mode,
+                audio_format,
                 status: Status::Queued,
                 title: String::new(),
                 frac: None,
                 item: None,
                 files: Vec::new(),
+                queued: 0,
                 pid: Arc::default(),
                 cancel: Arc::default(),
             },
         );
         self.next_id += 1;
-        true
     }
 
     fn log(&mut self, line: String) {
@@ -236,6 +243,15 @@ impl App {
                         slot.1 = state;
                     }
                 }
+                // Release jobs keep the artist job's mode and audio format.
+                Msg::Job(id, Event::Enqueue(links)) => {
+                    let Some(j) = self.jobs.iter_mut().find(|j| j.id == id) else { continue };
+                    j.queued = links.len();
+                    let (mode, audio_format) = (j.mode, j.audio_format);
+                    for url in links {
+                        self.push_job(url, mode, audio_format);
+                    }
+                }
                 Msg::Job(id, event) => {
                     let Some(j) = self.jobs.iter_mut().find(|j| j.id == id) else { continue };
                     match event {
@@ -255,6 +271,7 @@ impl App {
                             j.status = Status::Running;
                         }
                         Event::Log(line) => self.log(line),
+                        Event::Enqueue(_) => {}
                     }
                 }
                 Msg::JobEnd(id, result) => {
@@ -513,6 +530,7 @@ impl App {
                             }
                             Status::Done => {
                                 let text = match j.files.len() {
+                                    _ if j.queued > 0 => format!("✔ {name} — {} releases queued", j.queued),
                                     0 | 1 => format!("✔ {name}"),
                                     n => format!("✔ {name} ({n} files)"),
                                 };
@@ -688,5 +706,36 @@ mod tests {
         assert_eq!(saved("firefox").repair().browser.as_deref(), Some("firefox"));
         let missing = Settings { out_dir: "/no/such/folder".into(), ..Settings::default() };
         assert_eq!(missing.repair().out_dir, Settings::default().out_dir);
+    }
+
+    #[test]
+    fn artist_releases_keep_settings() {
+        let (tx, rx) = channel();
+        let mut app = App {
+            settings: Settings::default(),
+            input: String::new(),
+            tools: Vec::new(),
+            jobs: Vec::new(),
+            next_id: 0,
+            log: Vec::new(),
+            show_log: false,
+            show_browser: false,
+            cookie_check: CookieCheck::Idle,
+            dirs: paths::AppDirs { bin: "bin".into(), config: "config".into(), portable: false },
+            checking: false,
+            tx: tx.clone(),
+            rx,
+        };
+        app.push_job("https://music.youtube.com/channel/UC1".into(), Mode::Audio, AudioFormat::Mp3);
+        let links = vec!["https://music.youtube.com/browse/MPREb_1".into(), "https://music.youtube.com/browse/MPREb_2".into()];
+        tx.send(Msg::Job(0, Event::Enqueue(links))).unwrap();
+        app.handle_messages();
+        assert_eq!(app.jobs.len(), 3);
+        assert_eq!(app.jobs.iter().find(|j| j.id == 0).unwrap().queued, 2);
+        // Newest first: the first release is the oldest new job, so it runs first.
+        let releases: Vec<_> = app.jobs.iter().rev().skip(1).collect();
+        assert!(releases[0].url.ends_with("MPREb_1") && releases[1].url.ends_with("MPREb_2"));
+        assert!(releases.iter().all(|j| j.mode == Mode::Audio && j.audio_format == AudioFormat::Mp3));
+        assert!(releases.iter().all(|j| matches!(j.status, Status::Queued)));
     }
 }

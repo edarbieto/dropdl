@@ -37,6 +37,8 @@ cargo test -- --ignored --nocapture
 
 `library::e2e::song` downloads a YouTube Music song into `DROPDL_TEST_OUT/library/` in the library layout, checks the tags, the cover and `cover.jpg`, then runs again and checks that the song is skipped.
 
+`library::e2e::artist` uses two small artists (see music-library.md, Test artists): it checks that Downface queues its 2 albums and downloads *Within* whole (9 tracks, ~40 MB), and that Glassjaw queues its albums, EP and singles, then downloads one single into its own folder. It takes a few minutes.
+
 `job::e2e::cancel` starts a long download, kills it once progress arrives, and checks that yt-dlp exited and (on macOS/Linux) that no process of its group is left.
 
 Environment variables:
@@ -68,6 +70,7 @@ Both platforms:
 - [ ] A YouTube Music song gives `Album Artist/Album (Year)/NN - Title.m4a` with a square cover and `cover.jpg`, and the Log shows "Not converting audio".
 - [ ] A YouTube Music album gives the same folder with every track (progress shows `[i/n]`); pasting it again skips every track (Log: "exists, skipped").
 - [ ] Cancelling an album mid-way leaves no `.dropdl-*` file in the album folder.
+- [ ] A YouTube Music artist link (e.g. Glassjaw, `https://music.youtube.com/channel/UC7u7YhIifuby0fhcU3f4AjQ`) shows "✔ Glassjaw — 6 releases queued" and one job per release, all with the same audio format; each lands in `Glassjaw/<Release> (Year)/`.
 - [ ] A YouTube Music music video without an album still downloads (Log: "downloading without the library layout").
 - [ ] With Audio: MP3, the same song gives one MP3 with a square cover.
 - [ ] A YouTube video inside a playlist gives only that video.
