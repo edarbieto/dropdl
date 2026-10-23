@@ -68,6 +68,7 @@ The e2e tests (`install_and_download`, `cancel`) honor `DROPDL_TEST_URLS` (space
 - YouTube needs a JS runtime (deno), passed via `--js-runtimes deno:<path>`.
 - `--no-playlist` is always passed. It only affects links that point to both a video and a playlist. Pure playlist/album links still download fully.
 - Cookies come from Firefox only (`job::BROWSER`): Chromium browsers can't be read on Windows (app-bound encryption) and prompt for the Keychain on macOS. `yt-dlp --cookies-from-browser firefox --list-impersonate-targets` loads cookies without network access; `test_cookies` uses this.
+- macOS 27 blocks other apps from browser data folders ("Operation not permitted"; yt-dlp says "could not find firefox cookies database"). Only Full Disk Access lifts it, and apps can't request it with a prompt: `job::firefox_blocked` detects it and the UI links to the settings pane. The permission is tied to the code signature, so every ad-hoc build loses it (confirmed).
 - egui's default font lacks CJK glyphs, so `add_fallback_fonts` loads system fonts (Windows `Fonts`, macOS `/System/Library/Fonts`).
 - On macOS yt-dlp is the program-folder build (`bin/yt-dlp/yt-dlp_macos`): the single-file build unpacks itself on every run (~10 s startup).
 - Latest tool versions are read from redirects, not the GitHub API (`tools::version_in`). martin-riedl.de answers `HEAD` with 404: use `GET` without following redirects.

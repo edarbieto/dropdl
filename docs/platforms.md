@@ -38,6 +38,7 @@ Measured in October 2026 on Apple Silicon (macOS 27).
 - **Gatekeeper:** files downloaded by dropdl itself (`ureq`) get no quarantine attribute, only `com.apple.provenance`. All four tools ran without a prompt.
 - **ffmpeg (martin-riedl.de):** statically linked (only system frameworks), GPL with libx264, libmp3lame and AAC. The `redirect/latest/...` URL answers 307 with the version in the path (`/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip`), so updates can be detected. A `HEAD` request returns 404; use `GET` without following the redirect. evermeet.cx's download URL now returns 410.
 - **deno:** a single binary in a zip that keeps the executable bit.
+- **Browser data is blocked (macOS 27):** listing `~/Library/Application Support/Firefox`, `Google/Chrome` or `Discord` fails with "Operation not permitted" for every other program, while other apps' folders stay readable. yt-dlp reports this as "could not find firefox cookies database". Granting **Full Disk Access** (to `dropdl.app`, or to the terminal for `cargo run`) lifts it: the cookie test then found the profile's cookies. Apps can't request Full Disk Access with a prompt; dropdl detects the error and links to the settings pane (see cookies.md).
 - **PATH:** apps started from Finder get a minimal `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`), so Homebrew's `/opt/homebrew/bin` and `/usr/local/bin` are searched explicitly.
 
 ## Packaging
@@ -45,7 +46,7 @@ Measured in October 2026 on Apple Silicon (macOS 27).
 | Platform | Artifact | Notes |
 |---|---|---|
 | Windows | `dropdl.exe` | `scripts/build-release.ps1` (see release.md) |
-| macOS (Apple Silicon) | `dropdl.app` in `dropdl-macos-arm64.zip` | `scripts/bundle-macos.sh`. Signed ad hoc (`codesign -s -`): without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a downloaded copy ("Open Anyway" in System Settings > Privacy & Security). Intel builds later (or a universal binary via `lipo`). |
+| macOS (Apple Silicon) | `dropdl.app` in `dropdl-macos-arm64.zip` | `scripts/bundle-macos.sh`. Signed ad hoc (`codesign -s -`): without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a downloaded copy ("Open Anyway" in System Settings > Privacy & Security). Privacy permissions such as Full Disk Access are tied to the signature, which changes with every ad-hoc build: an updated app needs them again (confirmed October 2026: remove dropdl from the Full Disk Access list and add it again). A Developer ID signature would keep them. Intel builds later (or a universal binary via `lipo`). |
 | Linux (x86_64 first, planned) | AppImage + plain ELF in a `.tar.gz` | Build against an old glibc (Ubuntu 20.04 image or `cargo-zigbuild`). A static musl build isn't an option, because winit/glow load GL, X11 and Wayland libraries at runtime. Some distros need libfuse2 to run AppImages. |
 
 Planned: builds on GitHub Actions (`windows-latest`, `macos-14` arm64, `ubuntu-22.04`).

@@ -87,3 +87,5 @@ macOS:
 - [ ] A copy of the zip downloaded with a browser opens after "Open Anyway" in System Settings > Privacy & Security.
 - [ ] Cancel stops the download (`pgrep -fl yt-dlp` shows nothing).
 - [ ] Clicking a finished item reveals the file in Finder.
+- [ ] Without Full Disk Access, Connect Firefox shows the Full Disk Access message and **Open Privacy Settings** opens the pane; the Log shows "Operation not permitted". After adding `dropdl.app` and restarting, it connects.
+- [ ] After rebuilding with `scripts/bundle-macos.sh`, the Full Disk Access message appears again (the permission is tied to the ad-hoc signature); re-adding the app fixes it.

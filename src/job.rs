@@ -1,7 +1,7 @@
 //! Turning a link into yt-dlp arguments, running yt-dlp and parsing its output.
 //! The format rules are documented in docs/download-rules.md.
 
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -38,6 +38,11 @@ impl AudioFormat {
 /// The only browser dropdl reads cookies from (yt-dlp name). Chromium browsers
 /// encrypt cookies so other apps can't read them on Windows (see docs/cookies.md).
 pub const BROWSER: &str = "firefox";
+
+/// Shown when macOS blocks Firefox's data folder (macOS 27 protects browser
+/// data from other apps; Full Disk Access lifts it).
+pub const FULL_DISK_ACCESS_HINT: &str =
+    "macOS blocks access to Firefox's data. Give dropdl Full Disk Access, then restart dropdl.";
 
 /// Paths to the binaries a download needs.
 #[derive(Clone)]
@@ -257,10 +262,14 @@ pub fn run(
     }
 
     if status.success() {
-        Ok(())
-    } else {
-        Err(last_error(&errors).unwrap_or_else(|| format!("yt-dlp exited with {status}")))
+        return Ok(());
     }
+    let err = last_error(&errors).unwrap_or_else(|| format!("yt-dlp exited with {status}"));
+    if req.browser.is_none() {
+        return Err(err);
+    }
+    let mut log = |line| on_event(Event::Log(line));
+    Err(explain_cookie_error(err, firefox_blocked(), &mut log))
 }
 
 fn last_error(lines: &[String]) -> Option<String> {
@@ -283,24 +292,59 @@ pub fn kill(pid: u32) {
     let _ = command("kill").args(["-KILL", "--", &format!("-{pid}")]).output();
 }
 
-/// Checks that yt-dlp can read cookies from `browser`; returns how many it found.
+/// Checks that yt-dlp can read Firefox's cookies; returns how many it found.
 /// `--list-impersonate-targets` makes yt-dlp load cookies without touching the network.
-pub fn test_cookies(ytdlp: &Path, browser: &str) -> Result<usize, String> {
+/// yt-dlp's output goes to `log` (it names the profile and the count, never cookie values).
+pub fn test_cookies(ytdlp: &Path, mut log: impl FnMut(String)) -> Result<usize, String> {
+    let args = ["--cookies-from-browser", BROWSER, "--list-impersonate-targets"];
+    log(format!("> yt-dlp {}", args.join(" ")));
     let out = command(ytdlp)
-        .args(["--cookies-from-browser", browser, "--list-impersonate-targets"])
+        .args(args)
         .env("PYTHONUTF8", "1")
         .output()
         .map_err(|e| e.to_string())?;
     let text = String::from_utf8_lossy(&out.stderr).to_string() + &String::from_utf8_lossy(&out.stdout);
-    for line in text.lines() {
+    let lines: Vec<String> = text.lines().filter(|l| !l.trim().is_empty()).map(str::to_string).collect();
+    // The impersonate target table that follows is noise here.
+    for line in lines.iter().take_while(|l| !l.starts_with("[info] Available impersonate targets")) {
+        log(line.clone());
+    }
+    for line in &lines {
         if let Some(rest) = line.trim().strip_prefix("Extracted ") {
             if let Some(n) = rest.split_whitespace().next().and_then(|n| n.parse().ok()) {
                 return Ok(n);
             }
         }
     }
-    let lines: Vec<String> = text.lines().map(str::to_string).collect();
-    Err(last_error(&lines).unwrap_or_else(|| "could not read cookies".into()))
+    let err = last_error(&lines).unwrap_or_else(|| "could not read cookies".into());
+    Err(explain_cookie_error(err, firefox_blocked(), &mut log))
+}
+
+/// The error macOS gives when reading Firefox's data folder is not allowed.
+/// yt-dlp only reports "could not find firefox cookies database" in that case.
+fn firefox_blocked() -> Option<io::Error> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let dir = dirs::data_dir()?.join("Firefox");
+    match std::fs::read_dir(&dir) {
+        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+            Some(io::Error::new(e.kind(), format!("{}: {e}", dir.display())))
+        }
+        _ => None,
+    }
+}
+
+/// Replaces a cookie error with [`FULL_DISK_ACCESS_HINT`] when the folder is blocked,
+/// keeping the OS error in the Log.
+fn explain_cookie_error(err: String, blocked: Option<io::Error>, log: &mut impl FnMut(String)) -> String {
+    match blocked {
+        Some(e) => {
+            log(format!("cannot read Firefox's data: {e}"));
+            FULL_DISK_ACCESS_HINT.to_string()
+        }
+        None => err,
+    }
 }
 
 #[cfg(test)]
@@ -348,6 +392,17 @@ mod tests {
         let mp3 = args(AudioFormat::Mp3);
         assert!(mp3.contains("-t mp3 --audio-quality 0 --embed-metadata --embed-thumbnail"));
         assert!(!mp3.contains("m4a"));
+    }
+
+    #[test]
+    fn cookie_errors() {
+        let mut logged = Vec::new();
+        let mut log = |l| logged.push(l);
+        let err = "could not find firefox cookies database".to_string();
+        assert_eq!(explain_cookie_error(err.clone(), None, &mut log), err);
+        let denied = io::Error::new(io::ErrorKind::PermissionDenied, "Operation not permitted");
+        assert_eq!(explain_cookie_error(err, Some(denied), &mut log), FULL_DISK_ACCESS_HINT);
+        assert_eq!(logged, ["cannot read Firefox's data: Operation not permitted"]);
     }
 
     #[test]

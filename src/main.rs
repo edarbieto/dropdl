@@ -316,7 +316,9 @@ impl App {
         self.cookie_check = CookieCheck::Testing;
         let (tx, ctx) = (self.tx.clone(), ctx.clone());
         std::thread::spawn(move || {
-            let result = job::test_cookies(&ytdlp, BROWSER);
+            let result = job::test_cookies(&ytdlp, |line| {
+                let _ = tx.send(Msg::Log(line));
+            });
             let _ = tx.send(Msg::Cookies(BROWSER.to_string(), result));
             ctx.request_repaint();
         });
@@ -402,6 +404,9 @@ impl App {
                 }
                 CookieCheck::Result(Err(e)) => {
                     ui.colored_label(ui.visuals().error_fg_color, e);
+                    if e == job::FULL_DISK_ACCESS_HINT && ui.button("Open Privacy Settings").clicked() {
+                        open_privacy_settings();
+                    }
                 }
             }
         });
@@ -639,6 +644,13 @@ fn add_fallback_fonts(ctx: &egui::Context) {
 fn open_path(path: &std::path::Path) {
     let program = if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
     let _ = tools::command(program).arg(path).spawn();
+}
+
+/// Opens System Settings at Privacy & Security > Full Disk Access (macOS).
+fn open_privacy_settings() {
+    let _ = tools::command("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+        .spawn();
 }
 
 /// Shows `file` selected in Explorer / Finder.
