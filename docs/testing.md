@@ -6,7 +6,7 @@
 cargo test
 ```
 
-These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), and tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back).
+These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back), and the library layout (`src/library.rs`: name sanitizing, folder and file names, track selection, routing, temp file cleanup).
 
 The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session.
 
@@ -34,6 +34,8 @@ cargo test -- --ignored --nocapture
 
 1. Runs `tools::ensure_all`, which installs any missing tools into the data folder's `bin/`. By default that is next to the test binary (`target/debug/deps/bin`); set `DROPDL_HOME` to reuse an existing folder.
 2. Downloads each test URL in Auto mode, then checks that exactly one file is produced with the expected extension (`.m4a` for audio sites, `.mp4` otherwise).
+
+`library::e2e::song` downloads a YouTube Music song into `DROPDL_TEST_OUT/library/` in the library layout, checks the tags, the cover and `cover.jpg`, then runs again and checks that the song is skipped.
 
 `job::e2e::cancel` starts a long download, kills it once progress arrives, and checks that yt-dlp exited and (on macOS/Linux) that no process of its group is left.
 
@@ -63,7 +65,10 @@ Both platforms:
 
 - [ ] Ctrl+V / ⌘V with a link (focus outside the text box) starts the download immediately.
 - [ ] Ctrl+V / ⌘V with non-link text puts it in the text box instead.
-- [ ] A YouTube Music song gives one M4A with a square cover, and the Log shows "Not converting audio"; an album gives a folder with numbered tracks.
+- [ ] A YouTube Music song gives `Album Artist/Album (Year)/NN - Title.m4a` with a square cover and `cover.jpg`, and the Log shows "Not converting audio".
+- [ ] A YouTube Music album gives the same folder with every track (progress shows `[i/n]`); pasting it again skips every track (Log: "exists, skipped").
+- [ ] Cancelling an album mid-way leaves no `.dropdl-*` file in the album folder.
+- [ ] A YouTube Music music video without an album still downloads (Log: "downloading without the library layout").
 - [ ] With Audio: MP3, the same song gives one MP3 with a square cover.
 - [ ] A YouTube video inside a playlist gives only that video.
 - [ ] A title in Chinese, Japanese or Korean renders without boxes.

@@ -27,6 +27,16 @@ Uses yt-dlp's `-t mp4` preset, which prefers H.264 video and AAC audio and merge
 
 Both add `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail is cropped to a square so it looks like album art.
 
+## YouTube Music: library layout
+
+Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums and album playlists** (`OLAK5uy_…`) go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)):
+
+1. dropdl looks up the album on YouTube Music and MusicBrainz ("Looking up album").
+2. Each track gets its final path: `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.
+3. Each remaining track is downloaded alone, as M4A or MP3 with the flags above, without `--embed-metadata` and `--embed-thumbnail`. dropdl then writes its own tags and the square 1200 px cover, renames the file to its final name, and writes `cover.jpg` once per album.
+
+A song link downloads only that song, into its album's folder. When the lookup fails (e.g. a music video with no album), the link is downloaded as described in the rest of this page. Artist and playlist links also use the plain download for now.
+
 ## Single item vs. collection
 
 `--no-playlist` is always passed, so a link to a video *inside* a playlist (`watch?v=…&list=…`, including YouTube Music "radio" mixes) downloads only that item.
@@ -39,13 +49,14 @@ A link counts as a **collection** (`is_collection`) when it contains `/playlist`
 |---|---|
 | Video | `Title [id].mp4` |
 | Video playlist | `Playlist/001 - Title.mp4` |
-| YouTube Music song | `Artist - Title.m4a` |
-| Album / audio playlist | `Album/01 - Title.m4a` (track number set from playlist index) |
+| YouTube Music song or album (library layout) | `Album Artist/Album (Year)/01 - Title.m4a` |
+| YouTube Music song without an album | `Artist - Title.m4a` |
+| Other album / audio playlist | `Album/01 - Title.m4a` (track number set from playlist index) |
 | Other audio | `Title.m4a` |
 
 Audio files end in `.mp3` instead when the MP3 format is selected.
 
-Titles are truncated (`.120B` / `.150B`) to stay within Windows path limits.
+Titles are truncated (`.120B` / `.150B`) to stay within Windows path limits. Library names are sanitized and cut to 120 bytes per folder or file name (see music-library.md, step 5).
 
 ## Other flags
 

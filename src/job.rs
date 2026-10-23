@@ -58,6 +58,9 @@ pub struct Request {
     pub audio_format: AudioFormat,
     pub out_dir: PathBuf,
     pub browser: Option<String>,
+    /// Output template of a music library track (`library.rs`), which dropdl
+    /// tags itself: no embedded metadata or thumbnail.
+    pub template: Option<String>,
 }
 
 /// Something worth showing that yt-dlp reported.
@@ -148,12 +151,11 @@ pub fn build_args(req: &Request, tools: &Tools) -> Vec<String> {
         push(&["--cookies-from-browser", browser]);
     }
 
-    if audio {
-        match req.audio_format {
-            // m4a keeps an AAC source as is (YouTube's 140/141); anything else is converted.
-            AudioFormat::M4a => push(&["-f", "ba[acodec^=mp4a]/ba/b", "-x", "--audio-format", "m4a"]),
-            AudioFormat::Mp3 => push(&["-t", "mp3", "--audio-quality", "0"]),
-        }
+    if let (true, Some(template)) = (audio, &req.template) {
+        push(&audio_format_args(req.audio_format));
+        push(&["-o", template]);
+    } else if audio {
+        push(&audio_format_args(req.audio_format));
         push(&["--embed-metadata", "--embed-thumbnail"]);
         if music {
             // YouTube Music covers are 16:9 frames with the art in the middle: crop to square.
@@ -184,6 +186,14 @@ pub fn build_args(req: &Request, tools: &Tools) -> Vec<String> {
     a.push("--".into());
     a.push(req.url.clone());
     a
+}
+
+fn audio_format_args(format: AudioFormat) -> Vec<&'static str> {
+    match format {
+        // m4a keeps an AAC source as is (YouTube's 140/141); anything else is converted.
+        AudioFormat::M4a => vec!["-f", "ba[acodec^=mp4a]/ba/b", "-x", "--audio-format", "m4a"],
+        AudioFormat::Mp3 => vec!["-t", "mp3", "--audio-quality", "0"],
+    }
 }
 
 fn parse_line(line: &str) -> Event {
@@ -383,6 +393,7 @@ mod tests {
                 audio_format,
                 out_dir: "o".into(),
                 browser: None,
+                template: None,
             };
             build_args(&req, &tools).join(" ")
         };
@@ -392,6 +403,22 @@ mod tests {
         let mp3 = args(AudioFormat::Mp3);
         assert!(mp3.contains("-t mp3 --audio-quality 0 --embed-metadata --embed-thumbnail"));
         assert!(!mp3.contains("m4a"));
+    }
+
+    #[test]
+    fn library_track_args() {
+        let tools = Tools { ytdlp: "y".into(), deno: "d".into(), ffmpeg: "f".into() };
+        let req = Request {
+            url: "https://music.youtube.com/watch?v=abc".into(),
+            mode: Mode::Audio,
+            audio_format: AudioFormat::M4a,
+            out_dir: "o".into(),
+            browser: None,
+            template: Some(".dropdl-abc.%(ext)s".into()),
+        };
+        let args = build_args(&req, &tools).join(" ");
+        assert!(args.contains("-f ba[acodec^=mp4a]/ba/b -x --audio-format m4a -o .dropdl-abc.%(ext)s --"));
+        assert!(!args.contains("--embed") && !args.contains("--ppa") && !args.contains("--parse-metadata"));
     }
 
     #[test]
@@ -426,12 +453,12 @@ mod tests {
 /// as MP4 and as M4A. Needs network. Run with:
 /// `cargo test -- --ignored --nocapture` (set DROPDL_TEST_OUT to choose the folder).
 #[cfg(test)]
-mod e2e {
+pub mod e2e {
     use super::*;
     use crate::tools::{self, Tool, ToolState};
 
     /// Installs missing tools into the data folder (`DROPDL_HOME`).
-    fn install_tools() -> Tools {
+    pub fn install_tools() -> Tools {
         let found = std::sync::Mutex::new(std::collections::HashMap::new());
         let dirs = crate::paths::resolve();
         let report = |tool: Tool, state: ToolState| {
@@ -452,7 +479,7 @@ mod e2e {
         }
     }
 
-    fn out_dir() -> PathBuf {
+    pub fn out_dir() -> PathBuf {
         std::env::var_os("DROPDL_TEST_OUT")
             .map(PathBuf::from)
             .unwrap_or_else(|| std::env::temp_dir().join("dropdl-test"))
@@ -473,6 +500,7 @@ mod e2e {
                 audio_format: AudioFormat::M4a,
                 out_dir: out_dir.clone(),
                 browser: None,
+                template: None,
             };
             let mut files = Vec::new();
             let result = run(&req, &tools, &Arc::default(), |e| match e {
@@ -499,6 +527,7 @@ mod e2e {
             audio_format: AudioFormat::M4a,
             out_dir: out_dir(),
             browser: None,
+            template: None,
         };
         let pid: Arc<Mutex<Option<u32>>> = Arc::default();
         let (started_tx, started_rx) = std::sync::mpsc::channel();

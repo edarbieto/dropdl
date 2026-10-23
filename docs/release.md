@@ -60,8 +60,8 @@ Measured in October 2026 (Apple Silicon, variant G settings, Rust 1.99):
 
 | Artifact | Size |
 |---|---:|
-| `dropdl.app/Contents/MacOS/dropdl` | 5.95 MB |
-| `dropdl-macos-arm64.zip` | 3.15 MB |
+| `dropdl.app/Contents/MacOS/dropdl` | 6.54 MB (5.95 MB before the music library code and `lofty`) |
+| `dropdl-macos-arm64.zip` | 3.43 MB (was 3.15 MB) |
 
 Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway"). The app has no icon yet (see ROADMAP).
 
@@ -73,6 +73,6 @@ dropdl is `MIT OR Apache-2.0`. Its 204 linked crates (checked October 2026) use 
 - `option-ext` (used by `dirs`) is MPL-2.0: file-level copyleft that only applies to changes to that crate.
 - `epaint_default_fonts` embeds fonts under OFL-1.1 and the Ubuntu Font License, which allow embedding with their notice.
 
-These licenses ask that a binary distribution includes the dependencies' copyright and license notices. Before the first public release, generate a `THIRD-PARTY-LICENSES` file from `Cargo.lock` (e.g. with `cargo-about`) and ship it next to `dropdl.exe` and inside `dropdl.app`. Re-check when adding dependencies.
+These licenses ask that a binary distribution includes the dependencies' copyright and license notices. Before the first public release, generate a `THIRD-PARTY-LICENSES` file from `Cargo.lock` (e.g. with `cargo-about`) and ship it next to `dropdl.exe` and inside `dropdl.app`. Re-check when adding dependencies. `lofty` (October 2026) added `lofty`, `lofty_attr`, `ogg_pager` and `paste` (MIT OR Apache-2.0), `data-encoding` (MIT) and `byteorder` (Unlicense OR MIT).
 
 The tools dropdl downloads at runtime (yt-dlp, deno, the GPL ffmpeg build) are not distributed with dropdl and run as separate processes, so they don't affect its license. Bundling any of them in a release would bring their license terms (for ffmpeg: GPL source offer) into that release.

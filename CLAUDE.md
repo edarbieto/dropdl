@@ -29,6 +29,7 @@ src/main.rs    UI (eframe/egui), app state, message handling, job scheduling
 src/job.rs     URL classification, yt-dlp argument building, process run + output parsing, cookie test
 src/tools.rs   tool sources per platform, validation, download and update (into the bin dir)
 src/paths.rs   data folders: bin/ and config/ next to the exe (fallback: per-user data dir; always inside a macOS .app)
+src/library.rs music library downloads: Album Artist/Album (Year)/NN - Title.ext, skip existing, per-track download + tagging
 src/music.rs   music library metadata: Album/Track, link classification, YouTube Music + MusicBrainz lookup
 src/ytm.rs     YouTube Music innertube client and page parsers
 src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
@@ -50,7 +51,7 @@ cargo test                      # offline unit tests
 cargo test -- --ignored --nocapture   # e2e: installs tools + real downloads (network)
 ```
 
-The e2e tests (`install_and_download`, `cancel`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
+The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
 
 ## Conventions
 

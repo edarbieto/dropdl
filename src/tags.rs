@@ -106,7 +106,6 @@ fn build(tag_type: TagType, album: &Album, track: &Track, cover: Option<&[u8]>, 
     tag
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

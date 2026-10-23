@@ -23,12 +23,14 @@ pub struct Album {
     pub title: String,
     /// Album artist(s), identical on every track.
     pub artists: Vec<String>,
+    #[allow(dead_code)] // for artist downloads (step 6)
     pub kind: ReleaseKind,
     pub compilation: bool,
     /// The year from YouTube Music, or a full date ("2016-04-07") from MusicBrainz.
     pub date: Option<String>,
     /// Square, 1200 px.
     pub cover_url: Option<String>,
+    #[allow(dead_code)] // for artist downloads (step 6)
     pub browse_id: String,
     pub tracks: Vec<Track>,
     pub discs: u32,

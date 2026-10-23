@@ -1,20 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod job;
-// Music library mode, wired into downloads in the next steps (docs/music-library.md).
-#[allow(dead_code)]
+mod library;
 mod music;
-#[allow(dead_code)]
 mod musicbrainz;
 mod paths;
-#[allow(dead_code)]
 mod tags;
 mod tools;
-#[allow(dead_code)]
 mod ytm;
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
@@ -106,7 +103,7 @@ struct Job {
     item: Option<(u32, u32)>,
     files: Vec<PathBuf>,
     pid: Arc<Mutex<Option<u32>>>,
-    cancelled: bool,
+    cancel: Arc<AtomicBool>,
 }
 
 enum CookieCheck {
@@ -210,7 +207,7 @@ impl App {
                 item: None,
                 files: Vec::new(),
                 pid: Arc::default(),
-                cancelled: false,
+                cancel: Arc::default(),
             },
         );
         self.next_id += 1;
@@ -263,7 +260,7 @@ impl App {
                 Msg::JobEnd(id, result) => {
                     let Some(j) = self.jobs.iter_mut().find(|j| j.id == id) else { continue };
                     j.status = match result {
-                        _ if j.cancelled => Status::Cancelled,
+                        _ if j.cancel.load(Ordering::Relaxed) => Status::Cancelled,
                         Ok(()) => Status::Done,
                         Err(e) => Status::Failed(e),
                     };
@@ -301,13 +298,19 @@ impl App {
             audio_format: j.audio_format,
             out_dir: self.settings.out_dir.clone(),
             browser: self.settings.browser.clone(),
+            template: None,
         };
-        let (id, pid, tx, ctx) = (j.id, j.pid.clone(), self.tx.clone(), ctx.clone());
+        let (id, pid, cancel, tx, ctx) = (j.id, j.pid.clone(), j.cancel.clone(), self.tx.clone(), ctx.clone());
         std::thread::spawn(move || {
-            let result = job::run(&req, &tools, &pid, |event| {
+            let send = |event| {
                 let _ = tx.send(Msg::Job(id, event));
                 ctx.request_repaint();
-            });
+            };
+            let result = if library::handles(&req.url, req.mode) {
+                library::run(&req, &tools, &pid, &cancel, send)
+            } else {
+                job::run(&req, &tools, &pid, send)
+            };
             let _ = tx.send(Msg::JobEnd(id, result));
             ctx.request_repaint();
         });
@@ -483,7 +486,7 @@ impl App {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if active {
                         if ui.small_button("✖").on_hover_text("Cancel").clicked() {
-                            j.cancelled = true;
+                            j.cancel.store(true, Ordering::Relaxed);
                             if let Some(pid) = *j.pid.lock().unwrap() {
                                 job::kill(pid);
                             }

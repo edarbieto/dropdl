@@ -1,6 +1,6 @@
 # Music library mode (in progress)
 
-> Status: steps 1–4 of the [implementation plan](#implementation-plan) are done: M4A output (shipped), the album metadata lookup (`src/music.rs`, `src/ytm.rs`, `src/musicbrainz.rs`) and tag writing (`src/tags.rs`). The last two are not wired into downloads yet. **Next: step 5, library layout and skip-existing, which also wires in the tags.** Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–5 of the [implementation plan](#implementation-plan) are done. YouTube Music songs and albums are downloaded into the library layout with dropdl's tags and cover (`src/library.rs`); artists and playlists still use the plain yt-dlp download. Lyrics come in step 7. **Next: step 6, collections (artists, playlists).** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -116,8 +116,13 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
    - Mapping: multi-value `TrackArtist` and `TrackArtists`; MusicBrainz IDs as `ItemKey::MusicBrainzReleaseId`, `MusicBrainzReleaseGroupId`, `MusicBrainzReleaseArtistId` (album artists), `MusicBrainzRecordingId` and `MusicBrainzArtistId` (track artists, `Track::mb_artists`); `FlagCompilation`; lyrics as `UnsyncLyrics`; track total = tracks on that disc.
    - Saving replaces the whole tag of the file's main type (MP4 `ilst`, ID3v2), including what yt-dlp wrote, so no separate removal is needed.
    - lofty 0.25.4 gotchas: `TagType::remove_from_path` opens the file read-only and always fails ("failed to write to file"). An MP4 write that fails halfway **panics** (`AtomWriterCompanion` was not finished), which aborts the release build. So `write` tags a copy in memory (`Cursor<Vec<u8>>`) and replaces the file through a temporary file and a rename. MP4 covers have no picture type (read back as `Other`).
-5. **Library layout and skip-existing (next):** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits. This step also wires in the tags: download each track of the album by its `video_id` with yt-dlp (without `--embed-metadata` / `--embed-thumbnail` / the crop for music), then `tags::write` it with the cover fetched once per album, and write `cover.jpg`. A tagging failure is logged and keeps the downloaded file.
-6. **Collections:** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
+5. **Library layout and skip-existing:** done. `src/library.rs` handles audio downloads of YouTube Music songs, albums and album playlists (`library::handles`); see [download-rules.md](download-rules.md#youtube-music-library-layout) for the flow. Notes:
+   - Paths come from the album data before downloading. Names are sanitized (`library::sanitize`): Windows-forbidden characters and control characters → `_`, trailing dots and spaces removed, Windows device names (`CON`, `NUL`, `COM1`…, also with an extension) get a `_`, and each name is cut to 120 bytes.
+   - Each track is downloaded alone (`watch?v=<video_id>`) to `.dropdl-<id>.<ext>` in the album folder, tagged, then renamed. Leftovers of a failed or cancelled track (`.part` files) are removed.
+   - A song link downloads only that track, into its album's folder. The lookup takes a few seconds (MusicBrainz allows 1 request per second).
+   - If the lookup fails (API error, or a music video without an album), the link is downloaded the plain way and the Log says why.
+   - Failed or unavailable tracks don't stop the album: the job ends as failed with "N of M tracks failed" and keeps the other tracks. Pasting the link again downloads only what is missing.
+6. **Collections (next):** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
 7. **Lyrics:** LRCLIB synced, then LRCLIB plain, then YouTube Music plain lyrics, else none. A lyrics failure never fails the download.
 8. **UI and progress:** show artist/album jobs as "N of M tracks, K skipped". Update the manual checklist in `docs/testing.md`.
 
