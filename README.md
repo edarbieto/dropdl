@@ -54,7 +54,7 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 
 ## Status
 
-Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums and whole artists will become a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics and disc numbers, using MusicBrainz when a release matches. The metadata lookup is done; tagging and the folder layout come next. See [ROADMAP.md](ROADMAP.md).
+Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums and whole artists will become a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics and disc numbers, using MusicBrainz when a release matches. The metadata lookup and tag writing are done; the folder layout, which brings both into downloads, comes next. See [ROADMAP.md](ROADMAP.md).
 
 ## Limitations
 

@@ -237,6 +237,7 @@ fn parse_album(page: &Value, browse_id: &str) -> Result<Album, String> {
                 duration: item_duration(item),
                 video_id: song_id(item),
                 mb_recording: None,
+                mb_artists: Vec::new(),
             }
         })
         .collect();

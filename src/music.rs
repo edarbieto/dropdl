@@ -46,6 +46,8 @@ pub struct Track {
     /// None when the track is unavailable on YouTube Music.
     pub video_id: Option<String>,
     pub mb_recording: Option<String>,
+    /// MusicBrainz IDs of the track artists.
+    pub mb_artists: Vec<String>,
 }
 
 /// What a YouTube Music link points to.

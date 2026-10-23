@@ -7,6 +7,8 @@ mod music;
 #[allow(dead_code)]
 mod musicbrainz;
 mod paths;
+#[allow(dead_code)]
+mod tags;
 mod tools;
 #[allow(dead_code)]
 mod ytm;

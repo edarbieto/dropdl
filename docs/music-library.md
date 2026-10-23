@@ -1,6 +1,6 @@
 # Music library mode (in progress)
 
-> Status: steps 1–3 of the [implementation plan](#implementation-plan) are done: M4A output (shipped) and the album metadata lookup (`src/music.rs`, `src/ytm.rs`, `src/musicbrainz.rs`, not wired into downloads yet). **Next: step 4, tagging.** Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–4 of the [implementation plan](#implementation-plan) are done: M4A output (shipped), the album metadata lookup (`src/music.rs`, `src/ytm.rs`, `src/musicbrainz.rs`) and tag writing (`src/tags.rs`). The last two are not wired into downloads yet. **Next: step 5, library layout and skip-existing, which also wires in the tags.** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -112,11 +112,11 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
 1. **Spikes (no UI):** done, see Spike results below.
 2. **Format:** done. M4A copies the AAC stream (141 if available, else 140), MP3 is the existing re-encode path, and the audio format is a setting (see download-rules.md).
 3. **Metadata module:** done. `src/music.rs` (`Album`/`Track`, link classification, `album()` = YouTube Music + MusicBrainz), `src/ytm.rs` (innertube client and parsers), `src/musicbrainz.rs` (search, matching, `apply`). Offline tests use recorded responses in `tests/fixtures/`; `music::tests::live` checks the live services. Normal playlists are left for step 6.
-4. **Tagging (next):** after yt-dlp finishes, write the tag schema with `lofty`: embedded cover (square JPEG ~1200 px), lyrics, then `cover.jpg` per album folder. dropdl's tags replace `--embed-metadata` for music. Notes for the plan:
-   - Input is the `music::Album` / `music::Track` from step 3. The cover comes from `Album::cover_url` (already 1200 px), downloaded once per album with `ureq`.
-   - `lofty` ([Spike results](#spike-results)): use `ItemKey::UnsyncLyrics` for ID3v2 (`ItemKey::Lyrics` is dropped silently); several artists become ID3v2.4 `TXXX:ARTISTS`. MusicBrainz IDs map to `ItemKey::MusicBrainzReleaseId`, `MusicBrainzReleaseGroupId`, `MusicBrainzRecordingId` and `MusicBrainzReleaseArtistId` (album artist ids, in `MbIds::artists`); the compilation flag to `ItemKey::FlagCompilation`. Track artist ids are parsed (`MbTrack::artists`) but not kept on `Track` yet.
-   - A tagging module with tests that write generated M4A and MP3 files and read the tags back. Lyrics stay empty until step 7.
-5. **Library layout and skip-existing:** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits.
+4. **Tagging:** done. `src/tags.rs`: `write(path, album, track, cover, lyrics)` replaces a file's tags with the tag schema, `fetch_cover` downloads `Album::cover_url` (already 1200 px; must be a JPEG), `write_cover_file` writes `cover.jpg` unless one exists. Tests tag silent 1 s M4A and MP3 fixtures (`tests/fixtures/audio/`) and read them back. Lyrics stay empty until step 7. Notes:
+   - Mapping: multi-value `TrackArtist` and `TrackArtists`; MusicBrainz IDs as `ItemKey::MusicBrainzReleaseId`, `MusicBrainzReleaseGroupId`, `MusicBrainzReleaseArtistId` (album artists), `MusicBrainzRecordingId` and `MusicBrainzArtistId` (track artists, `Track::mb_artists`); `FlagCompilation`; lyrics as `UnsyncLyrics`; track total = tracks on that disc.
+   - Saving replaces the whole tag of the file's main type (MP4 `ilst`, ID3v2), including what yt-dlp wrote, so no separate removal is needed.
+   - lofty 0.25.4 gotchas: `TagType::remove_from_path` opens the file read-only and always fails ("failed to write to file"). An MP4 write that fails halfway **panics** (`AtomWriterCompanion` was not finished), which aborts the release build. So `write` tags a copy in memory (`Cursor<Vec<u8>>`) and replaces the file through a temporary file and a rename. MP4 covers have no picture type (read back as `Other`).
+5. **Library layout and skip-existing (next):** compute paths from album data before downloading, and skip existing files. Sanitize names and keep path lengths within Windows limits. This step also wires in the tags: download each track of the album by its `video_id` with yt-dlp (without `--embed-metadata` / `--embed-thumbnail` / the crop for music), then `tags::write` it with the cover fetched once per album, and write `cover.jpg`. A tagging failure is logged and keeps the downloaded file.
 6. **Collections:** album → its tracks; artist → albums, singles and EPs queued as album jobs; playlist → album layout or playlist folder (setting).
 7. **Lyrics:** LRCLIB synced, then LRCLIB plain, then YouTube Music plain lyrics, else none. A lyrics failure never fails the download.
 8. **UI and progress:** show artist/album jobs as "N of M tracks, K skipped". Update the manual checklist in `docs/testing.md`.
@@ -141,7 +141,7 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 
 **`lofty` tagging** (checked on generated M4A and MP3 files):
 - MP4: title, artist, album, album artist, track, disc, `©lyr` and a 1200×1200 cover are written correctly.
-- ID3v2 (MP3): writes ID3v2.4. Several artists become one `TXXX:ARTISTS` frame with null-separated values, and `TPE1` holds the first artist.
+- ID3v2 (MP3): writes ID3v2.4. Several artists become one `TXXX:ARTISTS` frame with null-separated values. With one `TrackArtist` item per artist (as `tags.rs` does), `TPE1` also holds all of them, null-separated (ID3v2.4 multi-value).
 - Gotcha: lyrics in ID3v2 need `ItemKey::UnsyncLyrics` (→ `USLT`). `ItemKey::Lyrics` is silently dropped for ID3v2. The language defaults to `XXX`; a native `UnsynchronizedTextFrame` can set it.
 
 **YouTube Music internal API** (`POST https://music.youtube.com/youtubei/v1/{search,browse,next}`, client `WEB_REMIX`, no login needed):

@@ -32,7 +32,8 @@ src/paths.rs   data folders: bin/ and config/ next to the exe (fallback: per-use
 src/music.rs   music library metadata: Album/Track, link classification, YouTube Music + MusicBrainz lookup
 src/ytm.rs     YouTube Music innertube client and page parsers
 src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
-tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session)
+src/tags.rs    writes music tags, cover and lyrics into M4A/MP3 files (lofty), cover.jpg
+tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session); audio/: silent M4A and MP3 for tag tests
 scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check), bundle-macos.sh (dist/dropdl.app + zip)
 docs/          architecture, download rules, tooling, cookies, testing, release, platforms, plans (music-library)
 ROADMAP.md     planned work
@@ -74,3 +75,4 @@ The e2e tests (`install_and_download`, `cancel`) honor `DROPDL_TEST_URLS` (space
 - Latest tool versions are read from redirects, not the GitHub API (`tools::version_in`). martin-riedl.de answers `HEAD` with 404: use `GET` without following redirects.
 - Without a login, YouTube Music album pages often list music videos instead of the songs. `ytm.rs` takes each song's id from the track menu's "View song credits" entry (`MPTC` + id).
 - Innertube continuations need the `visitorData` of the first response. Keep it in memory only, and never record it in fixtures.
+- lofty 0.25.4 panics when an MP4 write fails halfway (fatal with `panic = "abort"`), and `TagType::remove_from_path` always fails (opens read-only). `tags::write` tags an in-memory copy and replaces the file via a temp file and a rename; keep it that way.

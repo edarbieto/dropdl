@@ -151,7 +151,7 @@ fn credits(v: &Value) -> Vec<Credit> {
         .collect()
 }
 
-fn parse_release(v: &Value) -> Result<Release, String> {
+pub fn parse_release(v: &Value) -> Result<Release, String> {
     let id = v["id"].as_str().ok_or("MusicBrainz: unexpected release")?;
     let discs = v["media"]
         .as_array()
@@ -221,6 +221,7 @@ pub fn apply(album: &mut Album, release: &Release) {
         track.title = mb.title.clone();
         if !mb.artists.is_empty() {
             track.artists = names(&mb.artists);
+            track.mb_artists = mb.artists.iter().map(|c| c.id.clone()).collect();
         }
         track.mb_recording = Some(mb.recording.clone());
     }
@@ -275,6 +276,8 @@ mod tests {
         assert_eq!(mb.release_group, "aa997ea0-2936-40bd-884d-3af8a0e064dc");
         let lucky = album.tracks.iter().find(|t| t.title == "Get Lucky").unwrap();
         assert_eq!(lucky.artists, ["Daft Punk", "Pharrell Williams"]);
+        assert_eq!(lucky.mb_artists.len(), 2);
+        assert_eq!(lucky.mb_artists[0], mb.artists[0]);
         assert!(album.tracks.iter().all(|t| t.disc == 1 && t.mb_recording.is_some()));
     }
 

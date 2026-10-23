@@ -6,7 +6,7 @@
 cargo test
 ```
 
-These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`).
+These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), and tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back).
 
 The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session.
 
