@@ -58,7 +58,7 @@ The e2e tests (`install_and_download`, `cancel`) honor `DROPDL_TEST_URLS` (space
 - Spawn child processes with `tools::command()`, which sets `CREATE_NO_WINDOW` on Windows.
 - yt-dlp output is machine-parsed through custom `--progress-template` / `--print` prefixes (`[dl]`, `[pp]`, `[done]`). If you change the templates, update `parse_line` and its tests.
 - Cancel kills the whole process tree, because yt-dlp is a launcher that spawns a child process (and ffmpeg): `taskkill /T /F` on Windows; on Unix yt-dlp runs in its own process group, killed with `kill -KILL -<pgid>`.
-- Platform-specific code uses `cfg!`/`#[cfg]` inline (`tools::sources`, `kill`, `reveal`, fonts); differences are listed in `docs/platforms.md`. Check the Windows side compiles from macOS with `cargo check --target x86_64-pc-windows-gnu` (see `docs/testing.md`).
+- Platform-specific code uses `cfg!`/`#[cfg]` inline (`tools::sources`, `kill`, `reveal`, fonts); differences are listed in `docs/platforms.md`. Build and test only for the host target (macOS on a Mac, Windows on Windows); the other platform's code is checked when work continues on that machine. Linux comes later.
 - eframe 0.36 API: implement `App::ui(&mut self, ui, frame)` (not `update`). eframe uses the **glow** renderer (default features are off); don't re-enable wgpu without measuring.
 - Release profile uses `panic = "abort"`: don't rely on catching panics in threads; return `Result`s.
 - On Windows a running `.exe` can't be replaced: tool updates only run when no download is active (on every platform), and failed updates keep the old copy.
