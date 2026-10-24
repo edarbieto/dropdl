@@ -32,7 +32,7 @@ Both add `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail 
 Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album playlists** (`OLAK5uy_…`), **artists and playlists** go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)):
 
 1. dropdl looks up the album on YouTube Music and MusicBrainz ("Looking up album").
-2. Each track gets its final path: `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.
+2. Each track gets its final path in the library root (`dropdl` in the Music folder, see music-library.md): `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.
 3. Each remaining track is downloaded alone, as M4A or MP3 with the flags above, without `--embed-metadata` and `--embed-thumbnail`. dropdl then looks up lyrics (LRCLIB, else YouTube Music), writes its own tags, the lyrics and the square 1200 px cover, renames the file to its final name, and writes `cover.jpg` once per album.
 
 A song link downloads only that song, into its album's folder. When the lookup fails (e.g. a music video with no album), the link is downloaded as described in the rest of this page. An **artist** link (`/channel/UC…`) queues one album job per album, single and EP (newest first), each handled as above; the artist job itself downloads nothing. A **playlist** link puts its songs into their album folders as above, and downloads items without an album (music videos, uploads) with the plain audio rules into a folder named after the playlist.

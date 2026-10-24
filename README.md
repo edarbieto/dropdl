@@ -26,7 +26,7 @@ Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it use
 2. Copy a link and press **Ctrl+V** (**⌘V**) in the window.
 3. Click a finished item to reveal the file in Explorer / Finder.
 
-Downloads go to your *Downloads* folder by default. Use **Change…** to pick another folder.
+Downloads go to your *Downloads* folder by default. Use **Change…** to pick another folder. The music library (YouTube Music audio) goes to `dropdl` in your *Music* folder.
 
 ## Building
 

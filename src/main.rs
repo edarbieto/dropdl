@@ -354,11 +354,12 @@ impl App {
             return;
         };
         j.status = Status::Running;
+        let in_library = library::handles(&j.url, j.mode);
         let req = Request {
             url: j.url.clone(),
             mode: j.mode,
             audio_format: j.audio_format,
-            out_dir: self.settings.out_dir.clone(),
+            out_dir: if in_library { library::root(&self.settings.out_dir) } else { self.settings.out_dir.clone() },
             browser: self.settings.browser.clone(),
             template: None,
         };
@@ -368,7 +369,7 @@ impl App {
                 let _ = tx.send(Msg::Job(id, event));
                 ctx.request_repaint();
             };
-            let result = if library::handles(&req.url, req.mode) {
+            let result = if in_library {
                 library::run(&req, &tools, &pid, &cancel, send)
             } else {
                 job::run(&req, &tools, &pid, send)
@@ -533,6 +534,20 @@ impl App {
                 }
             }
         });
+        let library = library::root(&self.settings.out_dir);
+        if library != self.settings.out_dir {
+            ui.horizontal(|ui| {
+                ui.label("Music library:");
+                if ui
+                    .link(library.display().to_string())
+                    .on_hover_text("YouTube Music audio downloads go here. Open folder")
+                    .clicked()
+                {
+                    let _ = std::fs::create_dir_all(&library);
+                    open_path(&library);
+                }
+            });
+        }
     }
 
     fn job_list(&mut self, ui: &mut egui::Ui) {
@@ -577,6 +592,9 @@ impl App {
                                 if ui.link(j.done_label()).on_hover_text("Show in folder").clicked() {
                                     match j.files.first() {
                                         Some(f) => reveal(f),
+                                        None if library::handles(&j.url, j.mode) => {
+                                            open_path(&library::root(&out_dir))
+                                        }
                                         None => open_path(&out_dir),
                                     }
                                 }

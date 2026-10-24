@@ -19,6 +19,12 @@ const RESERVED: [&str; 22] = [
     "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
+/// Library root: `dropdl` in the user's Music folder, or `fallback` (the
+/// output folder) where the system has none.
+pub fn root(fallback: &Path) -> PathBuf {
+    dirs::audio_dir().map(|d| d.join("dropdl")).unwrap_or_else(|| fallback.to_path_buf())
+}
+
 /// Whether a request goes through library mode: audio from any YouTube
 /// Music link it understands (song, album, album playlist, artist, playlist).
 pub fn handles(url: &str, mode: Mode) -> bool {

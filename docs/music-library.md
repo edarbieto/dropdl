@@ -16,8 +16,10 @@ The audio choice is a small setting (MP3 / M4A), not a format picker.
 
 ## Folder layout
 
+The library root is `dropdl` in the user's Music folder (`~/Music/dropdl`, `%USERPROFILE%\Music\dropdl`; `library::root`), shown as "Music library" under "Save to". Without a Music folder (some Linux setups) the output folder is used. Everything a library job downloads goes there, also playlist items without an album and the plain fallback when the lookup fails.
+
 ```
-<output>/
+<library root>/
 └── Album Artist/
     └── Album (Year)/
         ├── cover.jpg
@@ -130,7 +132,7 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
    - Failed or unavailable tracks don't stop the album: the job ends as failed with "N of M tracks failed" and keeps the other tracks. Pasting the link again downloads only what is missing.
 6. **Collections**, split in two:
    - **6a. Artists:** done. An artist link (audio mode) becomes one album job per release: `library::run` reads the artist page (`ytm::Client::artist`: name, "Albums" and "Singles & EPs", paginated discography pages) and sends `Event::Enqueue` with a `browse/MPREb_…` link per release, newest first as on the artist page. The UI queues them with the artist job's mode and audio format and shows "✔ Artist — N releases queued". A channel without releases fails with "No albums or singles found for this artist" (no plain yt-dlp fallback: it would mix everything into one folder).
-   - **6b. Playlists:** done. `ytm::Client::playlist` reads the title and every item (pages of 100 via `continuationItemRenderer`). Songs are grouped by album in order of first appearance; each album is looked up once (YouTube Music + MusicBrainz) and only the playlist's tracks are downloaded (matched by video id) with the album code of step 5. Items without an album, or not found in their album, are downloaded one by one with the plain audio rules into `<output>/<Playlist title>/`, where yt-dlp skips existing files. Progress shows the item's position in the playlist. If the playlist can't be read, the link is downloaded the plain way. No playlist-folder setting (see Settings), and music videos are not mapped to songs (see Spike results).
+   - **6b. Playlists:** done. `ytm::Client::playlist` reads the title and every item (pages of 100 via `continuationItemRenderer`). Songs are grouped by album in order of first appearance; each album is looked up once (YouTube Music + MusicBrainz) and only the playlist's tracks are downloaded (matched by video id) with the album code of step 5. Items without an album, or not found in their album, are downloaded one by one with the plain audio rules into `<library root>/<Playlist title>/`, where yt-dlp skips existing files. Progress shows the item's position in the playlist. If the playlist can't be read, the link is downloaded the plain way. No playlist-folder setting (see Settings), and music videos are not mapped to songs (see Spike results).
 7. **Lyrics:** done. `lyrics::find` runs after each track's download, before tagging (UI step "Lyrics"), in the order under [Cover and lyrics](#cover-and-lyrics-embedded-plus-one-coverjpg). A lyrics failure never fails the download; LRCLIB's 503 ("The server is busy") is retried twice. The Log names the source per track (`lyrics: synced (LRCLIB): <title>`). Fixtures hold placeholder lines instead of real lyrics (`[00:01.32] line 1`), and LRCLIB's `lyricsfile` field (a YAML copy of the lyrics) is removed.
 8. **UI and progress:** done. Album and playlist jobs send `Event::Collection` ("Album Artist – Album" or the playlist title), so the row shows `45% [3/9]  Downface – Within · Purge` instead of only the current track, and `Event::Skipped` for files that already existed: dropdl's own check for library tracks, and for playlist videos a file whose date is older than its yt-dlp run (yt-dlp skips existing files but says so only without `--print`; `--no-mtime` makes the file date the download date). Finished jobs show `✔ Downface – Within — 9 tracks (2 skipped)`, `(all skipped)`, or `✔ Get Lucky (already downloaded)` for a single song; playlists show `Looking up album 4 of 72` between albums.
 
