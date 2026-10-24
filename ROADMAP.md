@@ -21,9 +21,9 @@
 - [x] Decided: ship variant G (glow, `opt-level = "s"`, `panic = "abort"`, accesskit kept, no UPX by default)
 - [x] Test on a clean machine (Windows Sandbox / VM without the VC++ Redistributable or a GPU driver)
 
-## v0.3 (in progress): music library mode
+## v0.3: music library mode
 
-Design and implementation plan: [docs/music-library.md](docs/music-library.md). **Next up: step 8, UI and progress** (notes in the plan).
+Design and implementation plan: [docs/music-library.md](docs/music-library.md). Done in v0.3.0.
 
 - [x] M4A/AAC output without re-encoding (default for all audio), MP3 as an option
 - [x] Album metadata from YouTube Music's internal API: songs (not music videos), track artists, cover, artist discographies
@@ -57,6 +57,8 @@ Design: [docs/platforms.md](docs/platforms.md).
 - [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect Firefox
 - [ ] "Retry" button on failed items
 - [ ] Show the total size and speed of the current download
+- [ ] Better names for YouTube Music items without an album (playlist videos, loose songs): uploads repeat the uploader (`Sean Williams - Sean Williams - Where You Left Me (Official Studio Music Video).m4a`); computing the name in dropdl would allow dropping the uploader and "(Official … Video)" suffixes
+- [ ] "Refresh tags" for files downloaded before a feature existed (e.g. lyrics), or when LRCLIB gets lyrics later
 
 ## Later / maybe
 

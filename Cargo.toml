@@ -1,6 +1,6 @@
 [package]
 name = "dropdl"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Minimal GUI to download video/audio from a pasted link, powered by yt-dlp"
 repository = "https://github.com/edarbieto/dropdl"

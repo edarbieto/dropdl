@@ -31,7 +31,7 @@ Cancel sets the job's shared `cancel` flag and kills the running yt-dlp; `librar
 | Msg | Sent by | Effect |
 |---|---|---|
 | `Tool(tool, state)` | tools thread | updates the indicator, logs version/path |
-| `Job(id, event)` | job thread | progress / title / produced files / log; `Event::Enqueue` (artist jobs) queues release jobs with the same mode and audio format |
+| `Job(id, event)` | job thread | progress / title / produced files / log; `Event::Collection` names an album or playlist job (track titles then come with `Progress`), `Event::Skipped` adds a file that already existed, `Event::Enqueue` (artist jobs) queues release jobs with the same mode and audio format |
 | `JobEnd(id, result)` | job thread | final status |
 | `Cookies(browser, result)` | cookie test thread | connects Firefox if cookies were read |
 | `Log(line)` | tools thread | appends to the Log (update notices, download failures) |

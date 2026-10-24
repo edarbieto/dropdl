@@ -48,13 +48,13 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 - [docs/cookies.md](docs/cookies.md): the "Connect Firefox" feature and troubleshooting
 - [docs/testing.md](docs/testing.md): how to test
 - [docs/release.md](docs/release.md): portable release build, size measurements and trade-offs
-- [docs/music-library.md](docs/music-library.md): music library mode for YouTube Music (in progress)
+- [docs/music-library.md](docs/music-library.md): music library mode for YouTube Music
 - [docs/platforms.md](docs/platforms.md): Windows/macOS differences, planned Linux support
 - [ROADMAP.md](ROADMAP.md): planned work
 
 ## Status
 
-Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums, whole artists and playlists already download into a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics (synced when available) and disc numbers, using MusicBrainz when a release matches. Next: clearer progress for albums and playlists. See [ROADMAP.md](ROADMAP.md).
+Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). Since v0.3: a **music library mode** for YouTube Music. Songs, albums, whole artists and playlists download into a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics (synced when available) and disc numbers, using MusicBrainz when a release matches. See [ROADMAP.md](ROADMAP.md) for what comes next.
 
 ## Limitations
 

@@ -75,6 +75,11 @@ pub fn album_dir(album: &Album) -> PathBuf {
     PathBuf::from(sanitize(&artist)).join(sanitize(&name))
 }
 
+/// "Album Artist – Album", the name of an album job.
+fn album_label(album: &Album) -> String {
+    format!("{} – {}", album.artists.join(", "), album.title)
+}
+
 /// `01 - Title.ext`, or `1-01 - Title.ext` on a multi-disc album.
 pub fn file_name(album: &Album, track: &Track, ext: &str) -> String {
     let number = if album.discs > 1 {
@@ -142,6 +147,9 @@ pub fn run(
         }
     };
 
+    if !matches!(link, Link::Song(_)) {
+        on_event(Event::Collection(album_label(&album)));
+    }
     let total = selected.len() as u32;
     let tracks: Vec<_> = selected.iter().enumerate().map(|(i, &t)| (t, (i as u32 + 1, total))).collect();
     match download_tracks(req, tools, pid, cancel, &album, &tracks, &mut on_event)? {
@@ -176,7 +184,7 @@ fn download_tracks(
         on_event(Event::Progress { frac: None, item, title: track.title.clone() });
         if path.exists() {
             on_event(Event::Log(format!("exists, skipped: {}", path.display())));
-            on_event(Event::Done(path));
+            on_event(Event::Skipped(path));
             continue;
         }
         let Some(id) = &track.video_id else {
@@ -267,7 +275,7 @@ fn run_playlist(
     let items = &playlist.items;
     let total = items.len() as u32;
     let item = |i: usize| (i as u32 + 1, total);
-    on_event(Event::Progress { frac: None, item: None, title: playlist.title.clone() });
+    on_event(Event::Collection(playlist.title.clone()));
     let (albums, mut loose) = group_by_album(items);
     on_event(Event::Log(format!(
         "{}: {total} items, {} songs from {} albums, {} without an album",
@@ -278,11 +286,11 @@ fn run_playlist(
     )));
 
     let mut failed = 0;
-    for (id, indexes) in &albums {
+    for (n, (id, indexes)) in albums.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
             return Err("cancelled".into());
         }
-        on_event(Event::Processing("Looking up album".into()));
+        on_event(Event::Processing(format!("Looking up album {} of {}", n + 1, albums.len())));
         let lines = RefCell::new(Vec::new());
         let album = music::album(&mut yt, id, &|line| lines.borrow_mut().push(line));
         for line in lines.take() {
@@ -323,8 +331,14 @@ fn run_playlist(
             browser: req.browser.clone(),
             template: None,
         };
+        // yt-dlp skips files it already has and still reports them (quietly,
+        // because of `--print`). With `--no-mtime` a file older than this
+        // run already existed.
+        let started = std::time::SystemTime::now();
+        let existed = |path: &Path| std::fs::metadata(path).and_then(|m| m.modified()).is_ok_and(|t| t < started);
         let result = job::run(&video_req, tools, pid, |event| match event {
             Event::Progress { frac, .. } => on_event(Event::Progress { frac, item: Some(item(i)), title: title.clone() }),
+            Event::Done(path) if existed(&path) => on_event(Event::Skipped(path)),
             other => on_event(other),
         });
         match result {
@@ -552,10 +566,12 @@ mod e2e {
         let path = out_dir.join("Daft Punk/Random Access Memories (2013)/01 - Give Life Back to Music.m4a");
         let _ = std::fs::remove_file(&path);
         let mut logs = Vec::new();
+        // Downloaded files, then skipped ones.
         let mut run_once = || {
-            let mut files = Vec::new();
+            let (mut files, mut skipped) = (Vec::new(), Vec::new());
             let result = run(&req, &tools, &Arc::default(), &AtomicBool::new(false), |e| match e {
                 Event::Done(p) => files.push(p),
+                Event::Skipped(p) => skipped.push(p),
                 Event::Log(l) => {
                     println!("{l}");
                     logs.push(l);
@@ -563,9 +579,9 @@ mod e2e {
                 _ => {}
             });
             assert!(result.is_ok(), "{result:?}");
-            files
+            (files, skipped)
         };
-        assert_eq!(run_once(), std::slice::from_ref(&path));
+        assert_eq!(run_once(), (vec![path.clone()], Vec::new()));
         let tag = lofty::read_from_path(&path).unwrap().primary_tag().unwrap().clone();
         assert_eq!(tag.get_string(ItemKey::AlbumArtist), Some("Daft Punk"));
         assert_eq!((tag.track(), tag.track_total()), (Some(1), Some(13)));
@@ -575,7 +591,7 @@ mod e2e {
         let leftovers = std::fs::read_dir(path.parent().unwrap()).unwrap().flatten();
         assert!(leftovers.into_iter().all(|e| !e.file_name().to_string_lossy().starts_with(".dropdl-")));
         // Second run: skipped before downloading.
-        assert_eq!(run_once(), std::slice::from_ref(&path));
+        assert_eq!(run_once(), (Vec::new(), vec![path.clone()]));
         assert!(logs.iter().any(|l| l.starts_with("exists, skipped")));
         println!("OK {}", path.display());
     }
@@ -601,8 +617,9 @@ mod e2e {
         links
     }
 
-    /// Downloads a release link into the library; returns the files.
-    fn download_release(tools: &Tools, url: &str, out_dir: &Path) -> Vec<PathBuf> {
+    /// Downloads a release link into the library; returns every file and how
+    /// many of them already existed.
+    fn download_release(tools: &Tools, url: &str, out_dir: &Path) -> (Vec<PathBuf>, usize) {
         let req = Request {
             url: url.into(),
             mode: Mode::Auto,
@@ -611,14 +628,18 @@ mod e2e {
             browser: None,
             template: None,
         };
-        let mut files = Vec::new();
+        let (mut files, mut skipped) = (Vec::new(), 0);
         let result = run(&req, tools, &Arc::default(), &AtomicBool::new(false), |e| match e {
             Event::Done(p) => files.push(p),
+            Event::Skipped(p) => {
+                files.push(p);
+                skipped += 1;
+            }
             Event::Log(l) => println!("{l}"),
             _ => {}
         });
         assert!(result.is_ok(), "{url}: {result:?}");
-        files
+        (files, skipped)
     }
 
     /// A small mixed playlist ("Downface alone", a public user playlist): 3
@@ -640,7 +661,8 @@ mod e2e {
             let _ = std::fs::remove_file(song);
         }
         let url = "https://music.youtube.com/playlist?list=PLVVKO43LKCzQ-A9Q6Wb8V23JFFRH2XJ2o";
-        let mut files = download_release(&tools, url, &out_dir);
+        let (mut files, skipped) = download_release(&tools, url, &out_dir);
+        assert_eq!(skipped, 0);
         files.sort();
         println!("{files:#?}");
         assert_eq!(files.len(), 6);
@@ -650,8 +672,10 @@ mod e2e {
         assert!(videos.iter().all(|v| v.extension().is_some_and(|e| e == "m4a")));
 
         let started = std::time::SystemTime::now();
-        let again = download_release(&tools, url, &out_dir);
+        let (again, skipped) = download_release(&tools, url, &out_dir);
         println!("second run: {} files in {:?}", again.len(), started.elapsed().unwrap_or_default());
+        // Songs are skipped by dropdl, videos by yt-dlp: all are reported as skipped.
+        assert_eq!((again.len(), skipped), (6, 6));
         let modified = |p: &PathBuf| std::fs::metadata(p).unwrap().modified().unwrap();
         assert!(files.iter().all(|f| modified(f) < started), "a file was downloaded again");
     }
@@ -674,7 +698,7 @@ mod e2e {
         let within = downface.iter().find(|u| kind(&mut yt, u).1 == "Within").expect("Within not queued");
         let dir = out_dir.join("Downface/Within (2002)");
         let _ = std::fs::remove_dir_all(&dir);
-        let files = download_release(&tools, within, &out_dir);
+        let (files, _) = download_release(&tools, within, &out_dir);
         assert_eq!(files.len(), 9);
         assert!(files.iter().all(|f| f.starts_with(&dir) && f.exists()));
         assert!(dir.join("09 - Chavez.m4a").exists() && dir.join("cover.jpg").exists());
@@ -684,7 +708,7 @@ mod e2e {
         assert!(kinds.iter().filter(|(_, k)| *k == music::ReleaseKind::Album).count() >= 3, "{glassjaw:?}");
         assert!(kinds.iter().any(|(_, k)| *k == music::ReleaseKind::Ep));
         let (single, _) = kinds.iter().find(|(_, k)| *k == music::ReleaseKind::Single).expect("no single");
-        let files = download_release(&tools, single, &out_dir);
+        let (files, _) = download_release(&tools, single, &out_dir);
         assert_eq!(files.len(), 1);
         assert!(files[0].starts_with(out_dir.join("Glassjaw")), "{}", files[0].display());
         println!("OK {} and {}", dir.display(), files[0].display());

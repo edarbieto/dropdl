@@ -103,10 +103,47 @@ struct Job {
     frac: Option<f32>,
     item: Option<(u32, u32)>,
     files: Vec<PathBuf>,
+    /// Album or playlist name; `title` is then the current track.
+    collection: String,
+    /// Files in `files` that already existed.
+    skipped: usize,
     /// Release jobs an artist job added.
     queued: usize,
     pid: Arc<Mutex<Option<u32>>>,
     cancel: Arc<AtomicBool>,
+}
+
+impl Job {
+    /// What the row shows while it runs: the link, the title, or
+    /// "Album · Track" for albums and playlists.
+    fn name(&self) -> String {
+        match (self.collection.is_empty(), self.title.is_empty()) {
+            (true, true) => self.url.clone(),
+            (true, false) => self.title.clone(),
+            (false, true) => self.collection.clone(),
+            (false, false) => format!("{} · {}", self.collection, self.title),
+        }
+    }
+
+    fn done_label(&self) -> String {
+        let (n, k) = (self.files.len(), self.skipped);
+        if self.queued > 0 {
+            return format!("✔ {} — {} releases queued", self.title, self.queued);
+        }
+        if self.collection.is_empty() {
+            return match (n, k) {
+                (_, 1..) => format!("✔ {} (already downloaded)", self.name()),
+                (0 | 1, _) => format!("✔ {}", self.name()),
+                _ => format!("✔ {} ({n} files)", self.name()),
+            };
+        }
+        let tracks = if n == 1 { "1 track".to_string() } else { format!("{n} tracks") };
+        match k {
+            0 => format!("✔ {} — {tracks}", self.collection),
+            _ if k == n => format!("✔ {} — {tracks} (all skipped)", self.collection),
+            _ => format!("✔ {} — {tracks} ({k} skipped)", self.collection),
+        }
+    }
 }
 
 enum CookieCheck {
@@ -214,6 +251,8 @@ impl App {
                 frac: None,
                 item: None,
                 files: Vec::new(),
+                collection: String::new(),
+                skipped: 0,
                 queued: 0,
                 pid: Arc::default(),
                 cancel: Arc::default(),
@@ -271,6 +310,11 @@ impl App {
                             j.files.push(path);
                             j.status = Status::Running;
                         }
+                        Event::Skipped(path) => {
+                            j.files.push(path);
+                            j.skipped += 1;
+                        }
+                        Event::Collection(name) => j.collection = name,
                         Event::Log(line) => self.log(line),
                         Event::Enqueue(_) => {}
                     }
@@ -496,7 +540,7 @@ impl App {
         let out_dir = self.settings.out_dir.clone();
         for j in &mut self.jobs {
             ui.horizontal(|ui| {
-                let name = if j.title.is_empty() { j.url.as_str() } else { j.title.as_str() };
+                let name = j.name();
                 let kind = if job::wants_audio(&j.url, j.mode) { j.audio_format.label() } else { "MP4" };
                 let item = j.item.map(|(i, n)| format!(" [{i}/{n}]")).unwrap_or_default();
 
@@ -530,12 +574,7 @@ impl App {
                                 ui.label(format!("{step}{item}  {name}"));
                             }
                             Status::Done => {
-                                let text = match j.files.len() {
-                                    _ if j.queued > 0 => format!("✔ {name} — {} releases queued", j.queued),
-                                    0 | 1 => format!("✔ {name}"),
-                                    n => format!("✔ {name} ({n} files)"),
-                                };
-                                if ui.link(text).on_hover_text("Show in folder").clicked() {
+                                if ui.link(j.done_label()).on_hover_text("Show in folder").clicked() {
                                     match j.files.first() {
                                         Some(f) => reveal(f),
                                         None => open_path(&out_dir),
@@ -543,10 +582,12 @@ impl App {
                                 }
                             }
                             Status::Failed(e) => {
+                                let name = if j.collection.is_empty() { &name } else { &j.collection };
                                 ui.colored_label(ui.visuals().error_fg_color, format!("✖ {name}"))
                                     .on_hover_text(e);
                             }
                             Status::Cancelled => {
+                                let name = if j.collection.is_empty() { &name } else { &j.collection };
                                 ui.label(egui::RichText::new(format!("{name} — cancelled")).weak());
                             }
                         }
@@ -709,10 +750,10 @@ mod tests {
         assert_eq!(missing.repair().out_dir, Settings::default().out_dir);
     }
 
-    #[test]
-    fn artist_releases_keep_settings() {
+    /// An app without a window, and a sender for its messages.
+    fn test_app() -> (App, Sender<Msg>) {
         let (tx, rx) = channel();
-        let mut app = App {
+        let app = App {
             settings: Settings::default(),
             input: String::new(),
             tools: Vec::new(),
@@ -727,6 +768,12 @@ mod tests {
             tx: tx.clone(),
             rx,
         };
+        (app, tx)
+    }
+
+    #[test]
+    fn artist_releases_keep_settings() {
+        let (mut app, tx) = test_app();
         app.push_job("https://music.youtube.com/channel/UC1".into(), Mode::Audio, AudioFormat::Mp3);
         let links = vec!["https://music.youtube.com/browse/MPREb_1".into(), "https://music.youtube.com/browse/MPREb_2".into()];
         tx.send(Msg::Job(0, Event::Enqueue(links))).unwrap();
@@ -738,5 +785,54 @@ mod tests {
         assert!(releases[0].url.ends_with("MPREb_1") && releases[1].url.ends_with("MPREb_2"));
         assert!(releases.iter().all(|j| j.mode == Mode::Audio && j.audio_format == AudioFormat::Mp3));
         assert!(releases.iter().all(|j| matches!(j.status, Status::Queued)));
+    }
+
+    #[test]
+    fn album_progress_and_summary() {
+        let (mut app, tx) = test_app();
+        app.push_job("https://music.youtube.com/browse/MPREb_1".into(), Mode::Auto, AudioFormat::M4a);
+        let send = |e| tx.send(Msg::Job(0, e)).unwrap();
+        let progress = |title: &str| Event::Progress { frac: Some(0.5), item: Some((2, 3)), title: title.into() };
+        send(Event::Collection("Downface – Within".into()));
+        send(Event::Skipped("01 - Lowmen.m4a".into()));
+        send(progress("Cold and Overcome"));
+        app.handle_messages();
+        let j = &app.jobs[0];
+        // Track titles don't replace the album name.
+        assert_eq!(j.name(), "Downface – Within · Cold and Overcome");
+        send(Event::Done("02 - Cold and Overcome.m4a".into()));
+        send(progress("Purge"));
+        send(Event::Done("03 - Purge.m4a".into()));
+        tx.send(Msg::JobEnd(0, Ok(()))).unwrap();
+        app.handle_messages();
+        let j = &app.jobs[0];
+        assert!(matches!(j.status, Status::Done));
+        assert_eq!(j.done_label(), "✔ Downface – Within — 3 tracks (1 skipped)");
+    }
+
+    #[test]
+    fn done_labels() {
+        let (mut app, _) = test_app();
+        app.push_job("https://x.com/a".into(), Mode::Auto, AudioFormat::M4a);
+        let j = &mut app.jobs[0];
+        assert_eq!(j.done_label(), "✔ https://x.com/a");
+        j.title = "Get Lucky".into();
+        j.files = vec!["a".into()];
+        assert_eq!(j.done_label(), "✔ Get Lucky");
+        j.skipped = 1;
+        assert_eq!(j.done_label(), "✔ Get Lucky (already downloaded)");
+        j.skipped = 0;
+        j.files = vec!["a".into(), "b".into()];
+        assert_eq!(j.done_label(), "✔ Get Lucky (2 files)");
+        j.collection = "Downface alone".into();
+        assert_eq!(j.done_label(), "✔ Downface alone — 2 tracks");
+        j.skipped = 2;
+        assert_eq!(j.done_label(), "✔ Downface alone — 2 tracks (all skipped)");
+        j.files = vec!["a".into()];
+        j.skipped = 0;
+        assert_eq!(j.done_label(), "✔ Downface alone — 1 track");
+        j.queued = 6;
+        j.title = "Glassjaw".into();
+        assert_eq!(j.done_label(), "✔ Glassjaw — 6 releases queued");
     }
 }

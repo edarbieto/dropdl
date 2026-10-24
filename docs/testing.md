@@ -76,7 +76,9 @@ Both platforms:
 - [ ] Ctrl+V / ⌘V with a link (focus outside the text box) starts the download immediately.
 - [ ] Ctrl+V / ⌘V with non-link text puts it in the text box instead.
 - [ ] A YouTube Music song gives `Album Artist/Album (Year)/NN - Title.m4a` with a square cover and `cover.jpg`, and the Log shows "Not converting audio".
-- [ ] A YouTube Music album gives the same folder with every track (progress shows `[i/n]`); pasting it again skips every track (Log: "exists, skipped").
+- [ ] A YouTube Music album gives the same folder with every track; the row shows `NN% [i/n]  Album Artist – Album · Track` and ends with `✔ Album Artist – Album — N tracks`. Pasting it again ends with `(all skipped)` (Log: "exists, skipped").
+- [ ] Pasting a song that already exists ends with `✔ Title (already downloaded)`.
+- [ ] A failed track (e.g. no network halfway) ends the album with `✖ Album Artist – Album` and "N of M tracks failed (see Log)" below it.
 - [ ] Cancelling an album mid-way leaves no `.dropdl-*` file in the album folder.
 - [ ] A YouTube Music playlist with songs and videos puts the songs in their album folders and the videos in a folder named after the playlist; progress shows `[i/n]` over the whole playlist.
 - [ ] A YouTube Music artist link (e.g. Glassjaw, `https://music.youtube.com/channel/UC7u7YhIifuby0fhcU3f4AjQ`) shows "✔ Glassjaw — 6 releases queued" and one job per release, all with the same audio format; each lands in `Glassjaw/<Release> (Year)/`.

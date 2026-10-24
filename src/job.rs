@@ -72,6 +72,11 @@ pub enum Event {
     },
     Processing(String),
     Done(PathBuf),
+    /// A file that already existed and was not downloaded again.
+    Skipped(PathBuf),
+    /// The name of the album or playlist a job downloads; track titles then
+    /// arrive through `Progress`.
+    Collection(String),
     Log(String),
     /// Links to queue as new jobs with the same settings (an artist's releases).
     Enqueue(Vec<String>),
