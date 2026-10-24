@@ -71,6 +71,8 @@ The Windows code can be type-checked from macOS with `cargo check --target x86_6
 
 ## Manual checklist
 
+Run it on every platform before a release (see ROADMAP, v0.3.0 release).
+
 Both platforms:
 
 - [ ] Ctrl+V / ⌘V with a link (focus outside the text box) starts the download immediately.
@@ -98,6 +100,9 @@ Windows:
 - [ ] Run from a read-only folder: data falls back to the per-user folder (first Log line).
 - [ ] Cancel stops the download (no leftover yt-dlp or ffmpeg process in Task Manager).
 - [ ] Clicking a finished item reveals the file in Explorer.
+- [ ] Music library names on NTFS: an album or track title with `: ? " / *` (e.g. "CMND/CTRL") or a trailing dot gets `_`, and a deep `Album Artist/Album (Year)/NN - Title.m4a` path inside a long output folder still downloads.
+- [ ] A library track whose final file is open in another program (e.g. a player) fails with a clear message in the Log and leaves no `.dropdl-*` file.
+- [ ] A fresh `dist/dropdl.exe` downloaded with a browser shows SmartScreen's "Windows protected your PC" and runs after "More info" → "Run anyway".
 
 macOS:
 

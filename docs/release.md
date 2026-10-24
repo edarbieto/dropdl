@@ -44,6 +44,18 @@ Windows Defender (`MpCmdRun -Scan -ScanType 3`) found no threats in G, G+UPX or 
 - **`panic = "abort"`:** a panic in any thread closes the whole app instead of only that thread. The code avoids panics on expected errors, so this is acceptable for a much smaller binary.
 - **UPX:** about 60% smaller (6.87 MB to 2.69 MB), at the cost of ~150 ms extra startup and a possible antivirus false positive.
 
+## Publishing a release
+
+Until CI builds exist (ROADMAP v0.4), releases are built locally: the Windows exe on Windows, the macOS zip on a Mac, both from the tagged commit.
+
+1. Bump `version` in `Cargo.toml`, add the release to `CHANGELOG.md`, and commit.
+2. Build on each platform from a clean checkout of that commit: `scripts/build-release.ps1` (Windows) and `scripts/bundle-macos.sh` (macOS). Both fail if the binary links a non-system library.
+3. Name the files by platform: `dropdl-windows-x64.exe` and `dropdl-macos-arm64.zip`. Ship `THIRD-PARTY-LICENSES` with both (see License notices).
+4. Write checksums: `shasum -a 256 dropdl-* > SHA256SUMS.txt` (macOS) or `Get-FileHash -Algorithm SHA256` (Windows).
+5. Tag and publish: `git tag -a v0.3.0 -m "dropdl 0.3.0"`, `git push origin v0.3.0`, then `gh release create v0.3.0 dropdl-windows-x64.exe dropdl-macos-arm64.zip SHA256SUMS.txt --title "dropdl 0.3.0" --notes-file <notes>` with the CHANGELOG section as notes.
+
+Don't ship the UPX build: packed executables, unsigned, from a downloader app are the most likely to be flagged by antivirus engines (see Trade-offs).
+
 ## Reproducing the measurements
 
 Build each variant by editing the eframe features and `[profile.release]` in `Cargo.toml`. Then compare `target/release/dropdl.exe` sizes and run `upx --best --lzma` on a copy.

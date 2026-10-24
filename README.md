@@ -13,7 +13,7 @@ Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it use
   - YouTube Music songs, albums, artists and playlists become a music library: `Album Artist/Album (Year)/01 - Title.m4a`, with complete tags (MusicBrainz when a release matches), lyrics from LRCLIB or YouTube Music, a square cover and `cover.jpg`. Tracks you already have are skipped.
   - You can force **Video (MP4)** or **Audio** instead.
 - **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, downloads whatever is missing, and updates them when a new release exists.
-- **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive. On macOS: a ~6 MB `dropdl.app` that keeps its data in `~/Library/Application Support/dropdl`.
+- **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive. On macOS: a ~6.5 MB `dropdl.app` that keeps its data in `~/Library/Application Support/dropdl`.
 - **Connect Firefox:** reuses your Firefox login cookies for sites that need a session (Instagram, Facebook, private or age-restricted videos).
 - Sequential download queue with progress, cancel, and "show in folder".
 - Remembers the output folder, mode, audio format and Firefox connection.

@@ -36,6 +36,29 @@ Design and implementation plan: [docs/music-library.md](docs/music-library.md). 
 - [x] Playlists: songs in their album folders, items without an album (music videos) in a playlist folder
 - [x] Skip tracks whose file already exists, checked before downloading
 
+## v0.3.0 release: first public release (in progress)
+
+The code for v0.3 is done (`Cargo.toml` is at 0.3.0). Before tagging `v0.3.0` and publishing builds:
+
+Testing (the manual checklist and e2e tests are in [docs/testing.md](docs/testing.md)):
+
+- [ ] macOS (Apple Silicon): `cargo test`, all e2e tests, the manual checklist with the bundled `dist/dropdl.app`, and a copy of the zip downloaded with a browser (Gatekeeper "Open Anyway")
+- [ ] Windows: `cargo test` and the e2e tests on a Windows machine; `scripts/build-release.ps1` passes the dependency check; the manual checklist with `dist/dropdl.exe`, including the changes made on macOS (gyan.dev ffmpeg migration, Firefox-only panel, music library mode: sanitized names, long paths, temporary file rename)
+- [ ] Windows clean machine (Windows Sandbox or a VM): first run downloads the tools; SmartScreen's "Windows protected your PC" → "More info" → "Run anyway"
+- [ ] Measure the Windows release size again (the music library code and `lofty` added about 0.6 MB on macOS) and update docs/release.md and the README
+
+Release contents:
+
+- [ ] Third-party license notices: `THIRD-PARTY-LICENSES` generated from `Cargo.lock` (e.g. with `cargo-about`), next to `dropdl.exe` and inside `dropdl.app` (see docs/release.md, License notices)
+- [ ] App icon (Windows and macOS) and Windows version metadata (file version, product name)
+- [ ] `CHANGELOG.md` with the v0.3.0 notes (they also become the GitHub release notes)
+- [ ] README for people who download it: a screenshot or short GIF, a Download section that links to GitHub Releases, first-launch warnings (SmartScreen, Gatekeeper), and a Privacy note (no telemetry; connects only to the sites you paste, YouTube Music, MusicBrainz, LRCLIB and the tool download sites)
+
+Publishing (steps in [docs/release.md](docs/release.md#publishing-a-release)):
+
+- [ ] Tag `v0.3.0` on `master` and create the GitHub release with `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip` and `SHA256SUMS.txt`
+- [ ] Repository: social preview image, issue templates (bug report asking for OS, dropdl version and the Log)
+
 ## v0.4: macOS and Linux (macOS done, Linux open)
 
 Design: [docs/platforms.md](docs/platforms.md).
@@ -45,15 +68,12 @@ Design: [docs/platforms.md](docs/platforms.md).
 - [x] Process-group kill, reveal in Finder, fallback fonts, ⌘V hint
 - [x] Cookies from Firefox only (Chromium browsers can't be read reliably)
 - [x] macOS `.app` (Apple Silicon, ad-hoc signed): `scripts/bundle-macos.sh`
-- [ ] Test the Windows changes on a Windows machine (gyan.dev migration, Firefox-only panel)
 - [ ] Linux: tool downloads (`.tar.xz` for BtbN), `xdg-open`, Noto CJK fonts, AppImage + ELF tarball
 - [ ] Intel Mac test, or a universal binary
-- [ ] CI builds on GitHub Actions
+- [ ] CI builds on GitHub Actions (release artifacts built from the tagged commit, with checksums and build provenance)
 
 ## Next
 
-- [ ] Third-party license notices shipped with release builds (see docs/release.md, License notices)
-- [ ] App icon (Windows and macOS) and Windows version metadata
 - [ ] Clearer error messages for common failures (login required, geo-blocked, rate-limited), with a hint to connect Firefox
 - [ ] "Retry" button on failed items
 - [ ] Show the total size and speed of the current download
