@@ -23,7 +23,7 @@
 
 ## v0.3 (in progress): music library mode
 
-Design and implementation plan: [docs/music-library.md](docs/music-library.md). **Next up: step 6b, playlists** (notes in the plan).
+Design and implementation plan: [docs/music-library.md](docs/music-library.md). **Next up: step 8, UI and progress** (notes in the plan).
 
 - [x] M4A/AAC output without re-encoding (default for all audio), MP3 as an option
 - [x] Album metadata from YouTube Music's internal API: songs (not music videos), track artists, cover, artist discographies
@@ -33,7 +33,7 @@ Design and implementation plan: [docs/music-library.md](docs/music-library.md). 
 - [x] Embedded square cover (~1200 px JPEG) and `cover.jpg`
 - [x] Embedded lyrics: synced from LRCLIB, fallback to YouTube Music's plain lyrics
 - [x] Whole artists: queue every album, single and EP as an album job
-- [ ] Playlists: album layout by default, optional playlist folder
+- [x] Playlists: songs in their album folders, items without an album (music videos) in a playlist folder
 - [x] Skip tracks whose file already exists, checked before downloading
 
 ## v0.4: macOS and Linux (macOS done, Linux open)

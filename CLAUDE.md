@@ -52,7 +52,7 @@ cargo test                      # offline unit tests
 cargo test -- --ignored --nocapture   # e2e: installs tools + real downloads (network)
 ```
 
-The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`, `library::e2e::artist`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
+The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`, `library::e2e::artist`, `library::e2e::playlist`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
 
 ## Conventions
 

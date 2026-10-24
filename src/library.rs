@@ -19,11 +19,10 @@ const RESERVED: [&str; 22] = [
     "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
-/// Whether a request goes through library mode: audio from a YouTube Music
-/// song, album, album playlist or artist. Playlists come later.
+/// Whether a request goes through library mode: audio from any YouTube
+/// Music link it understands (song, album, album playlist, artist, playlist).
 pub fn handles(url: &str, mode: Mode) -> bool {
-    job::wants_audio(url, mode)
-        && matches!(music::classify(url), Some(Link::Song(_) | Link::Album(_) | Link::AlbumPlaylist(_) | Link::Artist(_)))
+    job::wants_audio(url, mode) && music::classify(url).is_some()
 }
 
 /// Album links of an artist's releases, newest first as on the artist page.
@@ -121,8 +120,10 @@ pub fn run(
     mut on_event: impl FnMut(Event),
 ) -> Result<(), String> {
     let link = music::classify(&req.url).ok_or("not a YouTube Music link")?;
-    if let Link::Artist(channel) = &link {
-        return queue_artist(channel, &mut on_event);
+    match &link {
+        Link::Artist(channel) => return queue_artist(channel, &mut on_event),
+        Link::Playlist(list) => return run_playlist(req, tools, pid, cancel, list, &mut on_event),
+        _ => {}
     }
     on_event(Event::Processing("Looking up album".into()));
     let lines = RefCell::new(Vec::new());
@@ -141,18 +142,37 @@ pub fn run(
         }
     };
 
-    let dir = req.out_dir.join(album_dir(&album));
-    let ext = extension(req.audio_format);
     let total = selected.len() as u32;
+    let tracks: Vec<_> = selected.iter().enumerate().map(|(i, &t)| (t, (i as u32 + 1, total))).collect();
+    match download_tracks(req, tools, pid, cancel, &album, &tracks, &mut on_event)? {
+        0 => Ok(()),
+        n => Err(format!("{n} of {total} tracks failed (see Log)")),
+    }
+}
+
+/// Downloads tracks of an album into its library folder, skipping existing
+/// files. Each entry is a track index and the `(i, n)` shown as progress.
+/// Returns how many tracks failed; `Err` only when cancelled.
+fn download_tracks(
+    req: &Request,
+    tools: &Tools,
+    pid: &Arc<Mutex<Option<u32>>>,
+    cancel: &AtomicBool,
+    album: &Album,
+    tracks: &[(usize, (u32, u32))],
+    on_event: &mut impl FnMut(Event),
+) -> Result<u32, String> {
+    let dir = req.out_dir.join(album_dir(album));
+    let ext = extension(req.audio_format);
     let mut cover = None;
     let mut failed = 0;
-    for (i, &t) in selected.iter().enumerate() {
+    for &(t, item) in tracks {
         if cancel.load(Ordering::Relaxed) {
             return Err("cancelled".into());
         }
         let track = &album.tracks[t];
-        let path = dir.join(file_name(&album, track, ext));
-        let item = Some((i as u32 + 1, total));
+        let path = dir.join(file_name(album, track, ext));
+        let item = Some(item);
         on_event(Event::Progress { frac: None, item, title: track.title.clone() });
         if path.exists() {
             on_event(Event::Log(format!("exists, skipped: {}", path.display())));
@@ -176,7 +196,7 @@ pub fn run(
             browser: req.browser.clone(),
             template: Some(format!(".dropdl-{id}.%(ext)s")),
         };
-        match download(&track_req, tools, pid, &album, track, &path, &mut cover, &mut forward) {
+        match download(&track_req, tools, pid, album, track, &path, &mut cover, &mut forward) {
             Ok(()) => on_event(Event::Done(path)),
             Err(_) if cancel.load(Ordering::Relaxed) => return Err("cancelled".into()),
             Err(e) => {
@@ -188,6 +208,134 @@ pub fn run(
     // Folders of an album that got no file at all.
     let _ = std::fs::remove_dir(&dir);
     let _ = dir.parent().map(std::fs::remove_dir);
+    Ok(failed)
+}
+
+/// Playlist items grouped by album in order of first appearance, plus the
+/// items without an album (music videos, uploads), as item indexes.
+fn group_by_album(items: &[ytm::PlaylistItem]) -> (Vec<(String, Vec<usize>)>, Vec<usize>) {
+    let mut albums: Vec<(String, Vec<usize>)> = Vec::new();
+    let mut loose = Vec::new();
+    for (i, item) in items.iter().enumerate() {
+        match &item.album {
+            Some(id) => match albums.iter_mut().find(|(a, _)| a == id) {
+                Some((_, list)) => list.push(i),
+                None => albums.push((id.clone(), vec![i])),
+            },
+            None => loose.push(i),
+        }
+    }
+    (albums, loose)
+}
+
+/// Album tracks for playlist items, by video id; items not found in the
+/// album are returned as unmatched.
+fn match_tracks(album: &Album, items: &[ytm::PlaylistItem], indexes: &[usize]) -> (Vec<(usize, usize)>, Vec<usize>) {
+    let mut found = Vec::new();
+    let mut unmatched = Vec::new();
+    for &i in indexes {
+        let id = items[i].video_id.as_deref();
+        match album.tracks.iter().position(|t| id.is_some() && t.video_id.as_deref() == id) {
+            Some(t) => found.push((i, t)),
+            None => unmatched.push(i),
+        }
+    }
+    (found, unmatched)
+}
+
+/// Downloads a playlist: songs go to their album folders in the library
+/// layout, everything without an album to a `<Playlist>` folder with
+/// yt-dlp's metadata. Falls back to a plain download when the playlist
+/// can't be read.
+fn run_playlist(
+    req: &Request,
+    tools: &Tools,
+    pid: &Arc<Mutex<Option<u32>>>,
+    cancel: &AtomicBool,
+    list: &str,
+    on_event: &mut impl FnMut(Event),
+) -> Result<(), String> {
+    on_event(Event::Processing("Looking up playlist".into()));
+    let mut yt = ytm::Client::new();
+    let playlist = match yt.playlist(list) {
+        Ok(p) => p,
+        Err(e) => {
+            on_event(Event::Log(format!("{e}; downloading without the library layout")));
+            return job::run(req, tools, pid, on_event);
+        }
+    };
+    let items = &playlist.items;
+    let total = items.len() as u32;
+    let item = |i: usize| (i as u32 + 1, total);
+    on_event(Event::Progress { frac: None, item: None, title: playlist.title.clone() });
+    let (albums, mut loose) = group_by_album(items);
+    on_event(Event::Log(format!(
+        "{}: {total} items, {} songs from {} albums, {} without an album",
+        playlist.title,
+        items.len() - loose.len(),
+        albums.len(),
+        loose.len()
+    )));
+
+    let mut failed = 0;
+    for (id, indexes) in &albums {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("cancelled".into());
+        }
+        on_event(Event::Processing("Looking up album".into()));
+        let lines = RefCell::new(Vec::new());
+        let album = music::album(&mut yt, id, &|line| lines.borrow_mut().push(line));
+        for line in lines.take() {
+            on_event(Event::Log(line));
+        }
+        let album = match album {
+            Ok(album) => album,
+            Err(e) => {
+                on_event(Event::Log(format!("{e}; saving its tracks in the playlist folder")));
+                loose.extend(indexes);
+                continue;
+            }
+        };
+        let (found, unmatched) = match_tracks(&album, items, indexes);
+        loose.extend(unmatched);
+        let tracks: Vec<_> = found.iter().map(|&(i, t)| (t, item(i))).collect();
+        failed += download_tracks(req, tools, pid, cancel, &album, &tracks, on_event)?;
+    }
+
+    loose.sort_unstable();
+    let dir = req.out_dir.join(sanitize(if playlist.title.is_empty() { "Playlist" } else { &playlist.title }));
+    for i in loose {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("cancelled".into());
+        }
+        let Some(id) = &items[i].video_id else {
+            on_event(Event::Log(format!("not available on YouTube Music: {}", items[i].title)));
+            failed += 1;
+            continue;
+        };
+        let title = items[i].title.clone();
+        on_event(Event::Progress { frac: None, item: Some(item(i)), title: title.clone() });
+        let video_req = Request {
+            url: format!("https://music.youtube.com/watch?v={id}"),
+            mode: Mode::Audio,
+            audio_format: req.audio_format,
+            out_dir: dir.clone(),
+            browser: req.browser.clone(),
+            template: None,
+        };
+        let result = job::run(&video_req, tools, pid, |event| match event {
+            Event::Progress { frac, .. } => on_event(Event::Progress { frac, item: Some(item(i)), title: title.clone() }),
+            other => on_event(other),
+        });
+        match result {
+            Ok(()) => {}
+            Err(_) if cancel.load(Ordering::Relaxed) => return Err("cancelled".into()),
+            Err(e) => {
+                on_event(Event::Log(format!("{title}: {e}")));
+                failed += 1;
+            }
+        }
+    }
     match failed {
         0 => Ok(()),
         n => Err(format!("{n} of {total} tracks failed (see Log)")),
@@ -313,7 +461,9 @@ mod tests {
         assert!(!handles(song, Mode::Video));
         assert!(handles("https://music.youtube.com/playlist?list=OLAK5uy_abc", Mode::Auto));
         assert!(handles("https://music.youtube.com/browse/MPREb_K8qWMWVqXGi", Mode::Auto));
-        assert!(!handles("https://music.youtube.com/playlist?list=PL123", Mode::Auto));
+        assert!(handles("https://music.youtube.com/playlist?list=PL123", Mode::Auto));
+        assert!(handles("https://music.youtube.com/playlist?list=RDCLAK5uy_abc", Mode::Audio));
+        assert!(!handles("https://music.youtube.com/playlist?list=PL123", Mode::Video));
         assert!(handles("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Mode::Auto));
         assert!(!handles("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Mode::Video));
         assert!(!handles("https://www.youtube.com/watch?v=zKSsP2084nU", Mode::Audio));
@@ -330,6 +480,36 @@ mod tests {
         assert!(release_links(&artist).unwrap().iter().all(|l| handles(l, Mode::Auto)));
         let empty = ytm::Artist { name: "A".into(), releases: Vec::new() };
         assert_eq!(release_links(&empty).unwrap_err(), "No albums or singles found for this artist");
+    }
+
+    fn item(video_id: Option<&str>, album: Option<&str>) -> ytm::PlaylistItem {
+        ytm::PlaylistItem { video_id: video_id.map(str::to_string), title: "t".into(), album: album.map(str::to_string) }
+    }
+
+    #[test]
+    fn playlist_groups() {
+        let items = [
+            item(Some("v1"), None),
+            item(Some("a1"), Some("A")),
+            item(Some("b1"), Some("B")),
+            item(Some("a2"), Some("A")),
+            item(None, None),
+        ];
+        let (albums, loose) = group_by_album(&items);
+        assert_eq!(albums, [("A".to_string(), vec![1, 3]), ("B".to_string(), vec![2])]);
+        assert_eq!(loose, [0, 4]);
+    }
+
+    #[test]
+    fn playlist_tracks() {
+        let album = fixture_album("ram");
+        let lucky = album.tracks.iter().position(|t| t.title.starts_with("Get Lucky")).unwrap();
+        let lucky_id = album.tracks[lucky].video_id.as_deref();
+        let items = [item(Some("zKSsP2084nU"), Some("x")), item(Some("not-in-album"), Some("x")), item(lucky_id, Some("x"))];
+        let (found, unmatched) = match_tracks(&album, &items, &[0, 1, 2]);
+        assert_eq!(found, [(0, 0), (2, lucky)]);
+        assert_eq!(unmatched, [1]);
+        assert_eq!(match_tracks(&album, &[item(None, Some("x"))], &[0]), (Vec::new(), vec![0]));
     }
 
     #[test]
@@ -439,6 +619,41 @@ mod e2e {
         });
         assert!(result.is_ok(), "{url}: {result:?}");
         files
+    }
+
+    /// A small mixed playlist ("Downface alone", a public user playlist): 3
+    /// songs from 2 albums go to the library, 3 videos to the playlist folder.
+    /// A second run downloads nothing.
+    #[test]
+    #[ignore]
+    fn playlist() {
+        let tools = crate::job::e2e::install_tools();
+        let out_dir = crate::job::e2e::out_dir().join("library");
+        let folder = out_dir.join("Downface alone");
+        let songs = [
+            out_dir.join("Downface/Confidence (1998)/06 - Ocean.m4a"),
+            out_dir.join("Downface/Within (2002)/02 - Cold and Overcome.m4a"),
+            out_dir.join("Downface/Within (2002)/03 - Purge.m4a"),
+        ];
+        let _ = std::fs::remove_dir_all(&folder);
+        for song in &songs {
+            let _ = std::fs::remove_file(song);
+        }
+        let url = "https://music.youtube.com/playlist?list=PLVVKO43LKCzQ-A9Q6Wb8V23JFFRH2XJ2o";
+        let mut files = download_release(&tools, url, &out_dir);
+        files.sort();
+        println!("{files:#?}");
+        assert_eq!(files.len(), 6);
+        assert!(songs.iter().all(|s| files.contains(s)), "songs missing");
+        let videos: Vec<_> = files.iter().filter(|f| f.starts_with(&folder)).collect();
+        assert_eq!(videos.len(), 3);
+        assert!(videos.iter().all(|v| v.extension().is_some_and(|e| e == "m4a")));
+
+        let started = std::time::SystemTime::now();
+        let again = download_release(&tools, url, &out_dir);
+        println!("second run: {} files in {:?}", again.len(), started.elapsed().unwrap_or_default());
+        let modified = |p: &PathBuf| std::fs::metadata(p).unwrap().modified().unwrap();
+        assert!(files.iter().all(|f| modified(f) < started), "a file was downloaded again");
     }
 
     /// Two small artists: Downface (2 albums; *Within* is downloaded whole, 9

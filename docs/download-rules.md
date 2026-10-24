@@ -29,13 +29,13 @@ Both add `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail 
 
 ## YouTube Music: library layout
 
-Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album playlists** (`OLAK5uy_…`) **and artists** go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)):
+Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album playlists** (`OLAK5uy_…`), **artists and playlists** go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)):
 
 1. dropdl looks up the album on YouTube Music and MusicBrainz ("Looking up album").
 2. Each track gets its final path: `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.
 3. Each remaining track is downloaded alone, as M4A or MP3 with the flags above, without `--embed-metadata` and `--embed-thumbnail`. dropdl then looks up lyrics (LRCLIB, else YouTube Music), writes its own tags, the lyrics and the square 1200 px cover, renames the file to its final name, and writes `cover.jpg` once per album.
 
-A song link downloads only that song, into its album's folder. When the lookup fails (e.g. a music video with no album), the link is downloaded as described in the rest of this page. An **artist** link (`/channel/UC…`) queues one album job per album, single and EP (newest first), each handled as above; the artist job itself downloads nothing. Playlist links still use the plain download.
+A song link downloads only that song, into its album's folder. When the lookup fails (e.g. a music video with no album), the link is downloaded as described in the rest of this page. An **artist** link (`/channel/UC…`) queues one album job per album, single and EP (newest first), each handled as above; the artist job itself downloads nothing. A **playlist** link puts its songs into their album folders as above, and downloads items without an album (music videos, uploads) with the plain audio rules into a folder named after the playlist.
 
 ## Single item vs. collection
 
@@ -51,6 +51,7 @@ A link counts as a **collection** (`is_collection`) when it contains `/playlist`
 | Video playlist | `Playlist/001 - Title.mp4` |
 | YouTube Music song or album (library layout) | `Album Artist/Album (Year)/01 - Title.m4a` |
 | YouTube Music song without an album | `Artist - Title.m4a` |
+| YouTube Music playlist item without an album | `Playlist/Artist - Title.m4a` |
 | Other album / audio playlist | `Album/01 - Title.m4a` (track number set from playlist index) |
 | Other audio | `Title.m4a` |
 

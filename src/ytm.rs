@@ -71,6 +71,24 @@ impl Client {
         Ok(album)
     }
 
+    /// A playlist with all its items (pages of 100 are followed).
+    pub fn playlist(&mut self, list: &str) -> Result<Playlist, String> {
+        let page = self.browse(&format!("VL{list}"))?;
+        let title = playlist_title(&page);
+        let mut items = parse_playlist(&page);
+        let mut next = playlist_continuation(&page);
+        for _ in 0..MAX_PAGES {
+            let Some(token) = next else { break };
+            let page = self.call("browse", json!({ "continuation": token }))?;
+            items.extend(parse_playlist(&page));
+            next = playlist_continuation(&page);
+        }
+        if items.is_empty() {
+            return Err("YouTube Music: the playlist is empty or private".into());
+        }
+        Ok(Playlist { title, items })
+    }
+
     /// The album an `OLAK5uy_…` playlist belongs to.
     pub fn album_for_playlist(&mut self, list: &str) -> Result<String, String> {
         let items = parse_playlist(&self.browse(&format!("VL{list}"))?);
@@ -273,17 +291,40 @@ fn parse_album(page: &Value, browse_id: &str) -> Result<Album, String> {
     })
 }
 
-struct PlaylistItem {
-    video_id: Option<String>,
-    title: String,
+pub struct PlaylistItem {
+    /// None when the item is unavailable.
+    pub video_id: Option<String>,
+    pub title: String,
     /// Only songs link to their album, music videos don't.
-    album: Option<String>,
+    pub album: Option<String>,
+}
+
+pub struct Playlist {
+    pub title: String,
+    pub items: Vec<PlaylistItem>,
+}
+
+/// The entries of a playlist page, or of a continuation of it.
+fn playlist_entries(page: &Value) -> &[Value] {
+    let shelf = &page["contents"]["twoColumnBrowseResultsRenderer"]["secondaryContents"]["sectionListRenderer"]["contents"][0]["musicPlaylistShelfRenderer"];
+    let more = &page["onResponseReceivedActions"][0]["appendContinuationItemsAction"]["continuationItems"];
+    shelf["contents"].as_array().or(more.as_array()).map(Vec::as_slice).unwrap_or_default()
+}
+
+/// The token of the next 100 items, if there are more.
+fn playlist_continuation(page: &Value) -> Option<String> {
+    playlist_entries(page)
+        .iter()
+        .find_map(|e| e["continuationItemRenderer"]["continuationEndpoint"]["continuationCommand"]["token"].as_str())
+        .map(str::to_string)
+}
+
+fn playlist_title(page: &Value) -> String {
+    find(page, "musicResponsiveHeaderRenderer", &|_| true).map(|h| text(&h["title"])).unwrap_or_default()
 }
 
 fn parse_playlist(page: &Value) -> Vec<PlaylistItem> {
-    let shelf = &page["contents"]["twoColumnBrowseResultsRenderer"]["secondaryContents"]["sectionListRenderer"]["contents"][0]["musicPlaylistShelfRenderer"];
-    let items = shelf["contents"].as_array().map(Vec::as_slice).unwrap_or_default();
-    items
+    playlist_entries(page)
         .iter()
         .map(|i| &i["musicResponsiveListItemRenderer"])
         .filter(|item| item.is_object())
@@ -470,6 +511,25 @@ mod tests {
         let next = fixture("ytm_next_song");
         assert_eq!(parse_song_album(&next, "zKSsP2084nU").as_deref(), Some("MPREb_K8qWMWVqXGi"));
         assert_eq!(parse_song_album(&next, "other"), None);
+    }
+
+    #[test]
+    fn playlists() {
+        let mixed = fixture("ytm_playlist_mixed");
+        assert_eq!(playlist_title(&mixed), "Downface alone");
+        let items = parse_playlist(&mixed);
+        assert_eq!(items.len(), 6);
+        // Songs link to their album, uploaded videos don't.
+        let albums: Vec<_> = items.iter().map(|i| i.album.as_deref()).collect();
+        assert_eq!(albums.iter().filter(|a| a.is_some()).count(), 3);
+        assert!(albums[0].is_none() && albums[2].is_some() && albums[2] == albums[3] && albums[1] != albums[2]);
+        assert!(items.iter().all(|i| i.video_id.is_some()));
+        assert_eq!(playlist_continuation(&mixed), None);
+
+        let page = fixture("ytm_playlist_page");
+        assert_eq!((parse_playlist(&page).len(), playlist_continuation(&page).as_deref()), (2, Some("TOKEN")));
+        let more = fixture("ytm_playlist_continuation");
+        assert_eq!((parse_playlist(&more).len(), playlist_continuation(&more)), (2, None));
     }
 
     #[test]

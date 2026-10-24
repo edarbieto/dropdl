@@ -1,6 +1,6 @@
 # Music library mode (in progress)
 
-> Status: steps 1–5, 6a and 7 of the [implementation plan](#implementation-plan) are done. YouTube Music songs, albums and artists are downloaded into the library layout with dropdl's tags, cover and lyrics (`src/library.rs`); playlists still use the plain yt-dlp download. **Next: step 6b, playlists (spike first).** Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–7 of the [implementation plan](#implementation-plan) are done. YouTube Music songs, albums, artists and playlists are downloaded into the library layout with dropdl's tags, cover and lyrics (`src/library.rs`). **Next: step 8, UI and progress.** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -87,7 +87,7 @@ Lyrics are looked up only for tracks that are downloaded: existing files that ar
 | Song | one file in its album folder |
 | Album (`/browse/MPREb…` or `playlist?list=OLAK5uy_…`) | the whole album |
 | Artist (`/channel/UC…`) | every album, single and EP of the artist, each queued as a separate album job |
-| Playlist | by default, each track goes into its own album folder (album layout). Option: keep a `Playlist/01 - Title.ext` folder instead |
+| Playlist (`playlist?list=PL…`, `RDCLAK5uy_…`) | songs go into their album folders (library layout); items without an album (music videos, uploads) go to a `Playlist/Artist - Title.ext` folder with yt-dlp's metadata |
 
 yt-dlp can't structure an artist page by album (it mixes everything into "Songs"), so dropdl lists the artist's releases through the internal API and queues each album.
 
@@ -108,7 +108,8 @@ Kept to the minimum:
 | Setting | Values | Default |
 |---|---|---|
 | Audio format | M4A, MP3 | M4A |
-| Playlists | album layout, playlist folder | album layout |
+
+The planned "Playlists: album layout / playlist folder" setting was dropped (step 6b): songs always go to their albums, and only items without an album use the playlist folder.
 
 ## Implementation plan
 
@@ -129,7 +130,7 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
    - Failed or unavailable tracks don't stop the album: the job ends as failed with "N of M tracks failed" and keeps the other tracks. Pasting the link again downloads only what is missing.
 6. **Collections**, split in two:
    - **6a. Artists:** done. An artist link (audio mode) becomes one album job per release: `library::run` reads the artist page (`ytm::Client::artist`: name, "Albums" and "Singles & EPs", paginated discography pages) and sends `Event::Enqueue` with a `browse/MPREb_…` link per release, newest first as on the artist page. The UI queues them with the artist job's mode and audio format and shows "✔ Artist — N releases queued". A channel without releases fails with "No albums or singles found for this artist" (no plain yt-dlp fallback: it would mix everything into one folder).
-   - **6b. Playlists (next):** album layout or playlist folder. Spike first: `parse_playlist` reads only the first page (no continuations), music videos in a playlist have no album, and a playlist with tracks from many albums needs one MusicBrainz lookup per album. Decide whether the playlist-folder setting is needed.
+   - **6b. Playlists:** done. `ytm::Client::playlist` reads the title and every item (pages of 100 via `continuationItemRenderer`). Songs are grouped by album in order of first appearance; each album is looked up once (YouTube Music + MusicBrainz) and only the playlist's tracks are downloaded (matched by video id) with the album code of step 5. Items without an album, or not found in their album, are downloaded one by one with the plain audio rules into `<output>/<Playlist title>/`, where yt-dlp skips existing files. Progress shows the item's position in the playlist. If the playlist can't be read, the link is downloaded the plain way. No playlist-folder setting (see Settings), and music videos are not mapped to songs (see Spike results).
 7. **Lyrics:** done. `lyrics::find` runs after each track's download, before tagging (UI step "Lyrics"), in the order under [Cover and lyrics](#cover-and-lyrics-embedded-plus-one-coverjpg). A lyrics failure never fails the download; LRCLIB's 503 ("The server is busy") is retried twice. The Log names the source per track (`lyrics: synced (LRCLIB): <title>`). Fixtures hold placeholder lines instead of real lyrics (`[00:01.32] line 1`), and LRCLIB's `lyricsfile` field (a YAML copy of the lyrics) is removed.
 8. **UI and progress:** show artist/album jobs as "N of M tracks, K skipped". Update the manual checklist in `docs/testing.md`.
 
@@ -168,6 +169,10 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 - **The album page can list music videos instead of the audio tracks.** Without a login, many albums list music videos (`MUSIC_VIDEO_TYPE_OMV`, e.g. "Give Life Back to Music (Official Audio)", 4:44 instead of 4:36): all 13 tracks of Random Access Memories, 70 of 78 for the Deftones collection, none for a compilation. It doesn't depend on the region, the visitor session or API vs. HTML page; with a logged-in (Premium) session the page lists the songs. Every track's menu has a "View song credits" entry whose browse id is `MPTC` + the song's id (`MPTCzKSsP2084nU`). dropdl takes the ids from there: they match the album's playlist (`VLOLAK5uy_…`, `MUSIC_VIDEO_TYPE_ATV`) in order, the same ones yt-dlp gets. Checked on 17 albums (two per decade from the 1960s to the 2020s, rock, soul, pop, hip hop, grunge, Cuban son, Latin pop, reggaeton, folk, flamenco pop): 16 had the entry on every track. One track (Aretha Franklin, "Save Me (Mono)") had no credits entry, but its page id was already the song. So a track without the entry keeps its page id only if it is a song (`MUSIC_VIDEO_TYPE_ATV`); otherwise dropdl reads the album playlist and takes the id at the same position when the titles agree.
 - Song → album: `next` with `videoId`, `playlistId=RDAMVM<videoId>`, `isAudioOnly`, `enablePersistentPlaylistPanel` and `tunerSettingValue=AUTOMIX_SETTING_NORMAL`. The current track's `longBylineText` links to the album. Music videos have no album link. A song can map to a collection: "Bored" maps to "The Studio Album Collection", not to "Adrenaline".
 - Normal playlists: each item's third column links to its album, but only for audio tracks. Playlists made of music videos have no album links.
+- Playlist spike (October 2026): playlists are **mostly music videos**, even YouTube Music's own: "Presenting Daft Punk" 32 videos (`OMV`) and 2 songs (`ATV`), "'00s Metal" 96 and 15, a user's "Glassjaw best of" 53 videos (`UGC`/`OMV`) and 13 songs, while "Nu Metal Top 100" is 99 songs from 72 albums. Only songs link to an album. Their video ids are the same as on the album page (8 of 8 checked).
+- Music videos in playlists have no "View song credits" entry, and without a login the player's queue has no song counterpart (`playlistPanelVideoWrapperRenderer` doesn't appear). Searching songs by artist and title matched 17 of 34 videos of "Presenting Daft Punk" and picked doubtful albums ("Veridis Quo" → a single instead of *Discovery*), so videos are not mapped to songs.
+- Playlists longer than 100 items end with a `continuationItemRenderer` (token in `continuationEndpoint.continuationCommand.token`); `browse` with `continuation` returns the next items in `onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems`. The title is in `musicResponsiveHeaderRenderer`.
+- Test playlist: "Downface alone" (`PLVVKO43LKCzQ-A9Q6Wb8V23JFFRH2XJ2o`, a public user playlist): 6 items, 3 songs from 2 Downface albums, 1 music video and 2 uploads.
 - Discography pages are paginated (100 releases per page, 258 releases for Bob Dylan). The continuation (`browse` with `continuation`) only works with the `visitorData` of the first response, sent as `context.client.visitorData` and `X-Goog-Visitor-Id`. dropdl keeps it in memory only.
 - "Various Artists" albums have an unlinked "Various Artists" as the album artist, and the track artists in the track list.
 - Artist pages of small artists (checked October 2026) use the same `musicImmersiveHeaderRenderer` header as large ones; the name is its `title`. A "Singles & EPs" shelf with few items has no "more" button, so its items are read from the artist page itself.

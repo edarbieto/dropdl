@@ -163,7 +163,7 @@ pub fn album_ids(yt: &mut ytm::Client, link: &Link) -> Result<Vec<String>, Strin
             Some(id) => Ok(vec![id]),
             None => Err("YouTube Music: this song is not part of an album".into()),
         },
-        Link::Playlist(_) => Err("YouTube Music: playlists are not supported yet".into()),
+        Link::Playlist(_) => Err("YouTube Music: a playlist is not one album (see library::run_playlist)".into()),
     }
 }
 
