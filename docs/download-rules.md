@@ -33,7 +33,7 @@ Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album pla
 
 1. dropdl looks up the album on YouTube Music and MusicBrainz ("Looking up album").
 2. Each track gets its final path: `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.
-3. Each remaining track is downloaded alone, as M4A or MP3 with the flags above, without `--embed-metadata` and `--embed-thumbnail`. dropdl then writes its own tags and the square 1200 px cover, renames the file to its final name, and writes `cover.jpg` once per album.
+3. Each remaining track is downloaded alone, as M4A or MP3 with the flags above, without `--embed-metadata` and `--embed-thumbnail`. dropdl then looks up lyrics (LRCLIB, else YouTube Music), writes its own tags, the lyrics and the square 1200 px cover, renames the file to its final name, and writes `cover.jpg` once per album.
 
 A song link downloads only that song, into its album's folder. When the lookup fails (e.g. a music video with no album), the link is downloaded as described in the rest of this page. An **artist** link (`/channel/UC…`) queues one album job per album, single and EP (newest first), each handled as above; the artist job itself downloads nothing. Playlist links still use the plain download.
 

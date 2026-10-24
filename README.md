@@ -10,7 +10,7 @@ Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it use
 - **Smart format choice (Auto mode):**
   - YouTube Music, SoundCloud, Bandcamp, Mixcloud and Audiomack links become **M4A** (the original AAC audio, without re-encoding, with cover art and tags). MP3 is available as an option.
   - Everything else (YouTube, TikTok, Instagram, Facebook, Zoom, X, Vimeo, …) becomes **MP4 with H.264 + AAC**, which plays almost anywhere.
-  - YouTube Music songs, albums and artists become a music library: `Album Artist/Album (Year)/01 - Title.m4a`, with complete tags (MusicBrainz when a release matches), a square cover and `cover.jpg`. Tracks you already have are skipped.
+  - YouTube Music songs, albums and artists become a music library: `Album Artist/Album (Year)/01 - Title.m4a`, with complete tags (MusicBrainz when a release matches), lyrics from LRCLIB or YouTube Music, a square cover and `cover.jpg`. Tracks you already have are skipped.
   - You can force **Video (MP4)** or **Audio** instead.
 - **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, downloads whatever is missing, and updates them when a new release exists.
 - **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive. On macOS: a ~6 MB `dropdl.app` that keeps its data in `~/Library/Application Support/dropdl`.
@@ -54,7 +54,7 @@ cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testi
 
 ## Status
 
-Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums and whole artists already download into a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers and disc numbers, using MusicBrainz when a release matches. Next: playlists, then lyrics. See [ROADMAP.md](ROADMAP.md).
+Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). In progress (v0.3): a **music library mode** for YouTube Music. Songs, albums and whole artists already download into a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics (synced when available) and disc numbers, using MusicBrainz when a release matches. Next: playlists. See [ROADMAP.md](ROADMAP.md).
 
 ## Limitations
 

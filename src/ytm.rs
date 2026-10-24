@@ -77,9 +77,9 @@ impl Client {
         items.into_iter().find_map(|i| i.album).ok_or_else(|| "YouTube Music: playlist is not an album".into())
     }
 
-    /// The album of a song. None for music videos, which have no album.
-    pub fn song_album(&mut self, video_id: &str) -> Result<Option<String>, String> {
-        let page = self.call(
+    /// The player page of a song: its queue (with the album link) and tabs (lyrics).
+    fn next(&mut self, video_id: &str) -> Result<Value, String> {
+        self.call(
             "next",
             json!({
                 "videoId": video_id,
@@ -88,8 +88,18 @@ impl Client {
                 "enablePersistentPlaylistPanel": true,
                 "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
             }),
-        )?;
-        Ok(parse_song_album(&page, video_id))
+        )
+    }
+
+    /// The album of a song. None for music videos, which have no album.
+    pub fn song_album(&mut self, video_id: &str) -> Result<Option<String>, String> {
+        Ok(parse_song_album(&self.next(video_id)?, video_id))
+    }
+
+    /// A song's plain lyrics (YouTube Music has no timestamps for the web client).
+    pub fn lyrics(&mut self, video_id: &str) -> Result<Option<String>, String> {
+        let Some(id) = lyrics_id(&self.next(video_id)?) else { return Ok(None) };
+        Ok(parse_lyrics(&self.browse(&id)?))
     }
 
     /// An artist with every album, single and EP.
@@ -300,6 +310,19 @@ fn parse_song_album(page: &Value, video_id: &str) -> Option<String> {
     runs(&song["longBylineText"]).iter().find_map(album_id)
 }
 
+/// The browse id (`MPLY…`) of a song's lyrics tab.
+fn lyrics_id(next: &Value) -> Option<String> {
+    let is_lyrics = |e: &Value| e["browseId"].as_str().is_some_and(|id| id.starts_with("MPLY"));
+    find(next, "browseEndpoint", &is_lyrics).and_then(|e| e["browseId"].as_str()).map(str::to_string)
+}
+
+/// The lyrics text, without the "Source: …" footer, with `\n` line breaks.
+fn parse_lyrics(page: &Value) -> Option<String> {
+    let shelf = find(page, "musicDescriptionShelfRenderer", &|_| true)?;
+    let lyrics = text(&shelf["description"]).replace("\r\n", "\n");
+    Some(lyrics.trim().to_string()).filter(|l| !l.is_empty())
+}
+
 /// An "Albums" or "Singles & EPs" shelf of an artist page.
 struct Shelf {
     /// The discography page with the full list (browse id, params), if the shelf has one.
@@ -447,6 +470,14 @@ mod tests {
         let next = fixture("ytm_next_song");
         assert_eq!(parse_song_album(&next, "zKSsP2084nU").as_deref(), Some("MPREb_K8qWMWVqXGi"));
         assert_eq!(parse_song_album(&next, "other"), None);
+    }
+
+    #[test]
+    fn lyrics() {
+        assert_eq!(lyrics_id(&fixture("ytm_next_song")).as_deref(), Some("MPLYt_K8qWMWVqXGi-1"));
+        assert_eq!(lyrics_id(&serde_json::json!({})), None);
+        assert_eq!(parse_lyrics(&fixture("ytm_lyrics")).as_deref(), Some("line 1\nline 2\n\nline 4"));
+        assert_eq!(parse_lyrics(&serde_json::json!({})), None);
     }
 
     #[test]

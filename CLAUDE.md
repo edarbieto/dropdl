@@ -34,7 +34,8 @@ src/music.rs   music library metadata: Album/Track, link classification, YouTube
 src/ytm.rs     YouTube Music innertube client and page parsers
 src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
 src/tags.rs    writes music tags, cover and lyrics into M4A/MP3 files (lofty), cover.jpg
-tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session); audio/: silent M4A and MP3 for tag tests
+src/lyrics.rs  lyrics lookup: LRCLIB (exact, then search filtered by length), then YouTube Music
+tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session; lyrics replaced by placeholder lines); audio/: silent M4A and MP3 for tag tests
 scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check), bundle-macos.sh (dist/dropdl.app + zip)
 docs/          architecture, download rules, tooling, cookies, testing, release, platforms, plans (music-library)
 ROADMAP.md     planned work

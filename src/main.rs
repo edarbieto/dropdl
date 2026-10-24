@@ -2,6 +2,7 @@
 
 mod job;
 mod library;
+mod lyrics;
 mod music;
 mod musicbrainz;
 mod paths;

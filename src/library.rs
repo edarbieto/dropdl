@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::job::{self, AudioFormat, Event, Mode, Request, Tools};
 use crate::music::{self, Album, Link, Track};
-use crate::{tags, ytm};
+use crate::{lyrics, tags, ytm};
 
 /// Longest file or folder name in bytes, to stay within Windows path limits.
 const MAX_NAME: usize = 120;
@@ -224,12 +224,14 @@ fn download(
         }
     };
 
+    on_event(Event::Processing("Lyrics".into()));
+    let lyrics = lyrics::find(album, track, &mut |line| on_event(Event::Log(line)));
     on_event(Event::Processing("Tagging".into()));
     let cover = cover.get_or_insert_with(|| {
         let url = album.cover_url.as_deref()?;
         tags::fetch_cover(url).map_err(|e| on_event(Event::Log(e))).ok()
     });
-    if let Err(e) = tags::write(&file, album, track, cover.as_deref(), None) {
+    if let Err(e) = tags::write(&file, album, track, cover.as_deref(), lyrics.as_deref()) {
         on_event(Event::Log(format!("tags not written: {e}")));
     }
     if let Err(e) = std::fs::rename(&file, path) {
@@ -388,6 +390,7 @@ mod e2e {
         assert_eq!(tag.get_string(ItemKey::AlbumArtist), Some("Daft Punk"));
         assert_eq!((tag.track(), tag.track_total()), (Some(1), Some(13)));
         assert_eq!(tag.pictures().len(), 1);
+        assert!(tag.get_string(ItemKey::Lyrics).is_some(), "no lyrics");
         assert!(path.with_file_name("cover.jpg").exists());
         let leftovers = std::fs::read_dir(path.parent().unwrap()).unwrap().flatten();
         assert!(leftovers.into_iter().all(|e| !e.file_name().to_string_lossy().starts_with(".dropdl-")));

@@ -6,9 +6,15 @@
 cargo test
 ```
 
-These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back), and the library layout (`src/library.rs`: name sanitizing, folder and file names, track selection, routing, temp file cleanup).
+These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back), the library layout (`src/library.rs`: name sanitizing, folder and file names, track selection, routing, temp file cleanup), and lyrics (`src/lyrics.rs`: LRCLIB records, search results filtered by length; `src/ytm.rs`: the lyrics tab and text).
 
-The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session.
+The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session. Lyrics in fixtures (LRCLIB, YouTube Music) are replaced by placeholder lines such as `[00:01.32] line 1`, and LRCLIB's `lyricsfile` field is removed.
+
+```sh
+cargo test lyrics::tests::live -- --ignored --nocapture
+```
+
+checks each lyrics source against the live services: an exact LRCLIB match, a search match (album name differs), an instrumental, and a title only YouTube Music has.
 
 ```sh
 cargo test music::tests::live -- --ignored --nocapture
@@ -35,7 +41,7 @@ cargo test -- --ignored --nocapture
 1. Runs `tools::ensure_all`, which installs any missing tools into the data folder's `bin/`. By default that is next to the test binary (`target/debug/deps/bin`); set `DROPDL_HOME` to reuse an existing folder.
 2. Downloads each test URL in Auto mode, then checks that exactly one file is produced with the expected extension (`.m4a` for audio sites, `.mp4` otherwise).
 
-`library::e2e::song` downloads a YouTube Music song into `DROPDL_TEST_OUT/library/` in the library layout, checks the tags, the cover and `cover.jpg`, then runs again and checks that the song is skipped.
+`library::e2e::song` downloads a YouTube Music song into `DROPDL_TEST_OUT/library/` in the library layout, checks the tags, the lyrics, the cover and `cover.jpg`, then runs again and checks that the song is skipped.
 
 `library::e2e::artist` uses two small artists (see music-library.md, Test artists): it checks that Downface queues its 2 albums and downloads *Within* whole (9 tracks, ~40 MB), and that Glassjaw queues its albums, EP and singles, then downloads one single into its own folder. It takes a few minutes.
 

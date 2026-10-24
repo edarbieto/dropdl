@@ -1,6 +1,6 @@
 # Architecture
 
-dropdl is a single binary. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. `main.rs`, `tools.rs` and `job.rs` are shown below. `library.rs` runs music library downloads (YouTube Music songs, albums and artists): `music.rs`, `ytm.rs` and `musicbrainz.rs` look up the album, `job.rs` downloads each track, and `tags.rs` writes the tags (see music-library.md).
+dropdl is a single binary. `paths.rs` resolves the data folders (`bin/`, `config/`) before the window opens. `main.rs`, `tools.rs` and `job.rs` are shown below. `library.rs` runs music library downloads (YouTube Music songs, albums and artists): `music.rs`, `ytm.rs` and `musicbrainz.rs` look up the album, `job.rs` downloads each track, `lyrics.rs` finds lyrics, and `tags.rs` writes the tags (see music-library.md).
 
 ```
 ┌──────────── main.rs (UI thread) ─────────────┐

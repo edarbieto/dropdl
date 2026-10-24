@@ -31,7 +31,7 @@ Design and implementation plan: [docs/music-library.md](docs/music-library.md). 
 - [x] Library layout: `Album Artist/Album (Year)/01 - Title.ext`, plus `cover.jpg` per album (songs and albums)
 - [x] Complete tags written by dropdl (album artist, multi-value artists, track/disc numbers, date, MusicBrainz IDs)
 - [x] Embedded square cover (~1200 px JPEG) and `cover.jpg`
-- [ ] Embedded lyrics: synced from LRCLIB, fallback to YouTube Music's plain lyrics
+- [x] Embedded lyrics: synced from LRCLIB, fallback to YouTube Music's plain lyrics
 - [x] Whole artists: queue every album, single and EP as an album job
 - [ ] Playlists: album layout by default, optional playlist folder
 - [x] Skip tracks whose file already exists, checked before downloading

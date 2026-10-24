@@ -1,6 +1,6 @@
 # Music library mode (in progress)
 
-> Status: steps 1–5 and 6a of the [implementation plan](#implementation-plan) are done. YouTube Music songs, albums and artists are downloaded into the library layout with dropdl's tags and cover (`src/library.rs`); playlists still use the plain yt-dlp download. Lyrics come in step 7. **Next: step 6b, playlists (spike first).** Current audio behavior is described in [download-rules.md](download-rules.md).
+> Status: steps 1–5, 6a and 7 of the [implementation plan](#implementation-plan) are done. YouTube Music songs, albums and artists are downloaded into the library layout with dropdl's tags, cover and lyrics (`src/library.rs`); playlists still use the plain yt-dlp download. **Next: step 6b, playlists (spike first).** Current audio behavior is described in [download-rules.md](download-rules.md).
 
 Goal: YouTube Music songs, albums and whole artists become a clean local music library. Every file has complete, consistent tags, a cover and lyrics, so any music player or media server groups it correctly.
 
@@ -72,10 +72,13 @@ From a match dropdl takes the disc numbers and totals, the original release date
 - **Cover:** embedded in every track, so a file stays complete when copied to a phone or a car. Also written once per album as `cover.jpg`, which servers and file browsers read without opening each track. JPEG rather than PNG, because it is several times smaller.
 - **Lyrics:** embedded as text (ID3 `USLT`, MP4 `©lyr`). When synced lyrics are found, the LRC text with timestamps is stored there. Most players and servers read timestamps from this field. Separate `.lrc` files are not written by default: they get lost when files are moved, and they duplicate the data.
 
-Lyrics sources, in order:
-1. [LRCLIB](https://lrclib.net): open API, no key, matched by artist, title, album and duration. Synced LRC when available, else its plain lyrics.
-2. YouTube Music's own lyrics (plain text only with the web client).
-3. None.
+Lyrics sources, in order (`src/lyrics.rs`):
+1. [LRCLIB](https://lrclib.net) exact lookup (`/api/get`): open API, no key, matched by artist, title, album and duration. Synced LRC when available, else its plain lyrics. A track marked instrumental gets no lyrics, and the search stops there.
+2. LRCLIB search (`/api/search`, title and artist) when the lookup returns 404 or a record without lyrics: only results within ±2 s of the track's length count (the same title can be another version), synced first.
+3. YouTube Music's own lyrics (plain text only with the web client; `\r\n` line breaks become `\n`, the "Source: …" footer is dropped).
+4. None.
+
+Lyrics are looked up only for tracks that are downloaded: existing files that are skipped don't get lyrics afterwards.
 
 ## Collections
 
@@ -114,7 +117,7 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
 1. **Spikes (no UI):** done, see Spike results below.
 2. **Format:** done. M4A copies the AAC stream (141 if available, else 140), MP3 is the existing re-encode path, and the audio format is a setting (see download-rules.md).
 3. **Metadata module:** done. `src/music.rs` (`Album`/`Track`, link classification, `album()` = YouTube Music + MusicBrainz), `src/ytm.rs` (innertube client and parsers), `src/musicbrainz.rs` (search, matching, `apply`). Offline tests use recorded responses in `tests/fixtures/`; `music::tests::live` checks the live services. Normal playlists are left for step 6.
-4. **Tagging:** done. `src/tags.rs`: `write(path, album, track, cover, lyrics)` replaces a file's tags with the tag schema, `fetch_cover` downloads `Album::cover_url` (already 1200 px; must be a JPEG), `write_cover_file` writes `cover.jpg` unless one exists. Tests tag silent 1 s M4A and MP3 fixtures (`tests/fixtures/audio/`) and read them back. Lyrics stay empty until step 7. Notes:
+4. **Tagging:** done. `src/tags.rs`: `write(path, album, track, cover, lyrics)` replaces a file's tags with the tag schema, `fetch_cover` downloads `Album::cover_url` (already 1200 px; must be a JPEG), `write_cover_file` writes `cover.jpg` unless one exists. Tests tag silent 1 s M4A and MP3 fixtures (`tests/fixtures/audio/`) and read them back. Notes:
    - Mapping: multi-value `TrackArtist` and `TrackArtists`; MusicBrainz IDs as `ItemKey::MusicBrainzReleaseId`, `MusicBrainzReleaseGroupId`, `MusicBrainzReleaseArtistId` (album artists), `MusicBrainzRecordingId` and `MusicBrainzArtistId` (track artists, `Track::mb_artists`); `FlagCompilation`; lyrics as `UnsyncLyrics`; track total = tracks on that disc.
    - Saving replaces the whole tag of the file's main type (MP4 `ilst`, ID3v2), including what yt-dlp wrote, so no separate removal is needed.
    - lofty 0.25.4 gotchas: `TagType::remove_from_path` opens the file read-only and always fails ("failed to write to file"). An MP4 write that fails halfway **panics** (`AtomWriterCompanion` was not finished), which aborts the release build. So `write` tags a copy in memory (`Cursor<Vec<u8>>`) and replaces the file through a temporary file and a rename. MP4 covers have no picture type (read back as `Other`).
@@ -127,7 +130,7 @@ Each step ends with `cargo test` green and the docs updated (`download-rules.md`
 6. **Collections**, split in two:
    - **6a. Artists:** done. An artist link (audio mode) becomes one album job per release: `library::run` reads the artist page (`ytm::Client::artist`: name, "Albums" and "Singles & EPs", paginated discography pages) and sends `Event::Enqueue` with a `browse/MPREb_…` link per release, newest first as on the artist page. The UI queues them with the artist job's mode and audio format and shows "✔ Artist — N releases queued". A channel without releases fails with "No albums or singles found for this artist" (no plain yt-dlp fallback: it would mix everything into one folder).
    - **6b. Playlists (next):** album layout or playlist folder. Spike first: `parse_playlist` reads only the first page (no continuations), music videos in a playlist have no album, and a playlist with tracks from many albums needs one MusicBrainz lookup per album. Decide whether the playlist-folder setting is needed.
-7. **Lyrics:** LRCLIB synced, then LRCLIB plain, then YouTube Music plain lyrics, else none. A lyrics failure never fails the download.
+7. **Lyrics:** done. `lyrics::find` runs after each track's download, before tagging (UI step "Lyrics"), in the order under [Cover and lyrics](#cover-and-lyrics-embedded-plus-one-coverjpg). A lyrics failure never fails the download; LRCLIB's 503 ("The server is busy") is retried twice. The Log names the source per track (`lyrics: synced (LRCLIB): <title>`). Fixtures hold placeholder lines instead of real lyrics (`[00:01.32] line 1`), and LRCLIB's `lyricsfile` field (a YAML copy of the lyrics) is removed.
 8. **UI and progress:** show artist/album jobs as "N of M tracks, K skipped". Update the manual checklist in `docs/testing.md`.
 
 Risks:
@@ -182,6 +185,8 @@ Larger options: Quicksand (5 albums, 10 singles/EPs), Will Haven (8 albums, 7 si
 - Matches with a duration tolerance of about ±2 s, also without an album name. Returns 404 (`TrackNotFound`) on a miss.
 - Out of 4 real tracks (English, Spanish, Japanese): 3 had synced lyrics and 1 only plain lyrics, so LRCLIB's plain lyrics come before YouTube Music's.
 - Title differences between YouTube Music and LRCLIB (e.g. "Remastered" or "feat." suffixes) are a likely source of misses. `/api/search` is a possible fallback.
+- Second spike (October 2026, the test artists): "Downface – Lies" synced; "Chavez" plain; "Lowmen" a record **without lyrics** (later the same day it had plain lyrics: the data changes); "Glassjaw – shira" synced, but the search also returns a 151 s version from another album, so search results must be filtered by length; "Cosmopolitan Bloodloss" 404 with YouTube Music's album name "Worship And Tribute (U.S. Version)", found by the search under "Worship and Tribute"; "Daft Punk – Motherboard" is marked `instrumental`. LRCLIB answered 503 `ServerOverloaded` twice in a few minutes. Responses now include a `lyricsfile` field with a YAML copy of the lyrics.
+- YouTube Music had plain lyrics (Musixmatch or LyricFind) for every test track, including "Lowmen". LyricFind texts use `\r\n` line breaks.
 
 **MusicBrainz** (`GET https://musicbrainz.org/ws/2/release?query=…&fmt=json`, then `/release/<id>?inc=recordings+artist-credits+isrcs+release-groups`):
 - "Deftones – The Studio Album Collection": one result, a digital release with 7 discs (11+10+12+11+12+11+11 = 78 tracks). Each disc is titled with the original album (Adrenaline … Koi no Yokan). All 78 tracks match YouTube Music by position, title and duration (±3 s).
