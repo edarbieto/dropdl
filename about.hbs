@@ -1,0 +1,16 @@
+Third-party licenses
+====================
+
+dropdl includes the following Rust crates. Each license below is followed by the crates that use it.
+{{#each licenses}}
+
+--------------------------------------------------------------------------------
+{{{name}}} ({{id}})
+
+Used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

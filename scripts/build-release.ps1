@@ -1,4 +1,4 @@
-# Builds the portable release: dist/dropdl.exe
+# Builds the portable release: dist/dropdl.exe and dist/THIRD-PARTY-LICENSES.txt
 #
 # Usage: scripts/build-release.ps1 [-Upx]
 #   -Upx  also compress with UPX (upx must be on PATH or set via $env:UPX)
@@ -15,6 +15,7 @@ try {
 
     New-Item -ItemType Directory -Force dist | Out-Null
     Copy-Item target\release\dropdl.exe dist\dropdl.exe -Force
+    Copy-Item THIRD-PARTY-LICENSES.txt dist\THIRD-PARTY-LICENSES.txt -Force
 
     if ($Upx) {
         $upxExe = if ($env:UPX) { $env:UPX } else { (Get-Command upx -ErrorAction Stop).Source }

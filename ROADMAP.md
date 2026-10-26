@@ -49,9 +49,9 @@ Testing (the manual checklist and e2e tests are in [docs/testing.md](docs/testin
 
 Release contents:
 
-- [ ] Third-party license notices: `THIRD-PARTY-LICENSES` generated from `Cargo.lock` (e.g. with `cargo-about`), next to `dropdl.exe` and inside `dropdl.app` (see docs/release.md, License notices)
+- [x] Third-party license notices: `THIRD-PARTY-LICENSES.txt` generated from `Cargo.lock` with `cargo-about`, next to `dropdl.exe` and inside `dropdl.app` (see docs/release.md, License notices)
 - [ ] App icon (Windows and macOS) and Windows version metadata (file version, product name)
-- [ ] `CHANGELOG.md` with the v0.3.0 notes (they also become the GitHub release notes)
+- [x] `CHANGELOG.md` with the v0.3.0 notes (they also become the GitHub release notes)
 - [ ] README for people who download it: a screenshot or short GIF, a Download section that links to GitHub Releases, first-launch warnings (SmartScreen, Gatekeeper), and a Privacy note (no telemetry; connects only to the sites you paste, YouTube Music, MusicBrainz, LRCLIB and the tool download sites)
 
 Publishing (steps in [docs/release.md](docs/release.md#publishing-a-release)):

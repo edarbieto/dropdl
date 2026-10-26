@@ -13,14 +13,14 @@ dropdl is a minimal egui desktop app (Windows and macOS) that downloads media fr
 - **Compatibility first:** video → MP4 (H.264 + AAC), audio → M4A (AAC copied without re-encoding) or MP3. Rules live in `src/job.rs` and are documented in `docs/download-rules.md`. Keep the two in sync.
 - **Never put personal or machine-specific information** (user names, absolute home paths, emails, installed apps) in code, docs or test fixtures. Use placeholders such as `%LOCALAPPDATA%`.
 - **Git:** commit only when the user asks. Never push or rewrite history without explicit permission.
-- **Distribution goal:** a single, portable `.exe` that is as small as possible, a small `dropdl.app` on macOS, and later Linux builds. Avoid dependencies that need DLLs, installers or platform-specific system libraries (e.g. prefer rustls over OpenSSL). Check the size impact of new dependencies (`docs/release.md`).
+- **Distribution goal:** a single, portable `.exe` that is as small as possible, a small `dropdl.app` on macOS, and later Linux builds. Avoid dependencies that need DLLs, installers or platform-specific system libraries (e.g. prefer rustls over OpenSSL). Check the size impact and license of new dependencies, and regenerate `THIRD-PARTY-LICENSES.txt` (`docs/release.md`).
 
 ## Workflow
 
 - **Plan, then execute.** For anything beyond a small fix, first write a short plan (files to change, tests, docs, open decisions) and wait for the user's go-ahead. Then implement it, run the tests, and update the docs in the same change.
 - **Spike before designing on assumptions.** When behavior of an external service or tool is unknown, check it with a quick experiment and record the result (e.g. `docs/music-library.md`, Spike results).
 - **Ask only when something is unclear** or is a genuine decision (trade-offs, scope, naming the user cares about). Otherwise pick the sensible default, say so, and proceed. Offer a recommended option when asking.
-- **Current work:** the v0.3.0 release (first public release): testing on macOS and Windows, license notices, icon, README for users. Checklist in `ROADMAP.md`, publishing steps in `docs/release.md`. The music library mode (v0.3) is done; its design and spike results stay in `docs/music-library.md`.
+- **Current work:** the v0.3.0 release (first public release): testing on macOS and Windows, icon, README for users. Checklist in `ROADMAP.md`, publishing steps in `docs/release.md`. The music library mode (v0.3) is done; its design and spike results stay in `docs/music-library.md`.
 
 ## Layout
 

@@ -68,6 +68,8 @@ Video and audio downloads work as described above, on Windows and macOS (Apple S
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT), at your option.
 
+The licenses of the Rust crates compiled into dropdl are in [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt).
+
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in dropdl by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 dropdl downloads [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), [deno](https://deno.com) (MIT) and an ffmpeg build (GPL; [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) on Windows, [martin-riedl.de](https://ffmpeg.martin-riedl.de) on macOS) from their official releases at runtime and runs them as separate programs. They are not part of dropdl and keep their own licenses.
