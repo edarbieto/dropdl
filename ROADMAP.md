@@ -42,7 +42,7 @@ The code for v0.3 is done (`Cargo.toml` is at 0.3.0). Before tagging `v0.3.0` an
 
 Testing (the manual checklist and e2e tests are in [docs/testing.md](docs/testing.md)):
 
-- [ ] macOS (Apple Silicon): `cargo test`, all e2e tests, the manual checklist with the bundled `dist/dropdl.app`, and a copy of the zip downloaded with a browser (Gatekeeper "Open Anyway")
+- [x] macOS (Apple Silicon): `cargo test`, all e2e tests, the basic manual checks with the bundled `dist/dropdl.app` (song download, skip, paste, reveal, `~` paths; the rest of the checklist skipped), and a quarantined copy of the zip (Gatekeeper "Open Anyway"). October 2026
 - [ ] Windows: `cargo test` and the e2e tests on a Windows machine; `scripts/build-release.ps1` passes the dependency check; the manual checklist with `dist/dropdl.exe`, including the changes made on macOS (gyan.dev ffmpeg migration, Firefox-only panel, music library mode: sanitized names, long paths, temporary file rename)
 - [ ] Windows clean machine (Windows Sandbox or a VM): first run downloads the tools; SmartScreen's "Windows protected your PC" → "More info" → "Run anyway"
 - [ ] Measure the Windows release size again (the music library code and `lofty` added about 0.6 MB on macOS) and update docs/release.md and the README
