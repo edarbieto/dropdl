@@ -43,14 +43,14 @@ The code for v0.3 is done (`Cargo.toml` is at 0.3.0). Before tagging `v0.3.0` an
 Testing (the manual checklist and e2e tests are in [docs/testing.md](docs/testing.md)):
 
 - [x] macOS (Apple Silicon): `cargo test`, all e2e tests, the basic manual checks with the bundled `dist/dropdl.app` (song download, skip, paste, reveal, `~` paths; the rest of the checklist skipped), and a quarantined copy of the zip (Gatekeeper "Open Anyway"). October 2026
-- [ ] Windows: `cargo test` and the e2e tests on a Windows machine; `scripts/build-release.ps1` passes the dependency check; the manual checklist with `dist/dropdl.exe`, including the changes made on macOS (gyan.dev ffmpeg migration, Firefox-only panel, music library mode: sanitized names, long paths, temporary file rename)
-- [ ] Windows clean machine (Windows Sandbox or a VM): first run downloads the tools; SmartScreen's "Windows protected your PC" → "More info" → "Run anyway"
-- [ ] Measure the Windows release size again (the music library code and `lofty` added about 0.6 MB on macOS) and update docs/release.md and the README
+- [ ] Windows (skipped for v0.3.0: CI runs `cargo test` and the dependency check; the rest is open): the e2e tests on a Windows machine; `scripts/build-release.ps1` passes the dependency check; the manual checklist with `dist/dropdl.exe`, including the changes made on macOS (gyan.dev ffmpeg migration, Firefox-only panel, music library mode: sanitized names, long paths, temporary file rename)
+- [ ] Windows clean machine (skipped for v0.3.0) (Windows Sandbox or a VM): first run downloads the tools; SmartScreen's "Windows protected your PC" → "More info" → "Run anyway"
+- [x] Measure the Windows release size again: 7.55 MB from the Release workflow (docs/release.md)
 
 Release contents:
 
 - [x] Third-party license notices: `THIRD-PARTY-LICENSES.txt` generated from `Cargo.lock` with `cargo-about`, next to `dropdl.exe` and inside `dropdl.app` (see docs/release.md, License notices)
-- [ ] App icon (Windows and macOS) and Windows version metadata (file version, product name): done on macOS; check the exe icon, taskbar icon and Properties > Details on Windows (docs/release.md, App icon)
+- [ ] App icon (Windows and macOS) and Windows version metadata (file version, product name): done on macOS; the CI-built exe has the icon and version resources (checked October 2026); the taskbar icon on Windows is unchecked (docs/release.md, App icon)
 - [x] `CHANGELOG.md` with the v0.3.0 notes (they also become the GitHub release notes)
 - [x] README for people who download it: a Download section that links to GitHub Releases, first-launch warnings (SmartScreen, Gatekeeper), and a Privacy note (no telemetry; connects only to the sites you paste, YouTube Music, MusicBrainz, LRCLIB and the tool download sites)
 - [x] Screenshot for the README: `docs/screenshot.png` (an album and a video; paths in the home folder show as `~`, so no user name)

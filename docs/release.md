@@ -34,6 +34,8 @@ Windows x64, Rust 1.95, eframe 0.36, measured on the same code. The startup time
 | G + UPX `--best --lzma` | 2.69 MB | |
 | H + UPX `--best --lzma` | 2.58 MB | |
 
+Current release (v0.3.0, built by the Release workflow on `windows-latest`, Rust 1.99.1, October 2026): **7.55 MB**, 19 system DLLs imported. The music library code (`lofty`), the icon and version resources added 0.68 MB to variant G.
+
 Startup time: ~31 ms uncompressed (A, G, H alike) vs. ~187 ms with UPX, because UPX decompresses into memory before running.
 
 Windows Defender (`MpCmdRun -Scan -ScanType 3`) found no threats in G, G+UPX or H+UPX. Other antivirus engines were not tested. UPX-packed executables are a common source of false positives.
@@ -81,8 +83,8 @@ Measured in October 2026 (Apple Silicon, variant G settings, Rust 1.99):
 
 | Artifact | Size |
 |---|---:|
-| `dropdl.app/Contents/MacOS/dropdl` | 6.54 MB (5.95 MB before the music library code and `lofty`) |
-| `dropdl-macos-arm64.zip` | 3.55 MB (3.43 MB before THIRD-PARTY-LICENSES.txt and the icon, 3.15 MB before the music library) |
+| `dropdl.app/Contents/MacOS/dropdl` | 6.54 MB locally, 6.63 MB from the Release workflow (5.95 MB before the music library code and `lofty`) |
+| `dropdl-macos-arm64.zip` | 3.55 MB locally, 3.58 MB from the Release workflow (3.43 MB before THIRD-PARTY-LICENSES.txt and the icon, 3.15 MB before the music library) |
 
 Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway").
 

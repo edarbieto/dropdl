@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-10-26)
 
 First public release. Builds for Windows (x64) and macOS (Apple Silicon).
 
@@ -20,5 +20,5 @@ First public release. Builds for Windows (x64) and macOS (Apple Silicon).
 ### Tools and packaging
 
 - yt-dlp, deno, ffmpeg and ffprobe are downloaded on first run and updated automatically when a new release exists.
-- Windows: one portable `.exe` (about 7 MB, no installer, no DLLs). Tools and settings live next to it, so it runs from any folder or USB drive.
+- Windows: one portable `.exe` (under 8 MB, no installer, no DLLs). Tools and settings live next to it, so it runs from any folder or USB drive.
 - macOS: a small `dropdl.app`, signed ad hoc (not notarized: allow it once in System Settings > Privacy & Security).
