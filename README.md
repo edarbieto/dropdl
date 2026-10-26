@@ -1,74 +1,111 @@
 # dropdl
 
-A minimal desktop app for Windows and macOS that downloads video or audio from a link. Copy a link, press **Ctrl+V** (**⌘V** on a Mac) in the window, and the download starts in the most compatible format.
+A small desktop app for Windows and macOS that downloads video or audio from a link. Copy a link, press **Ctrl+V** (**⌘V** on a Mac) in the window, and the download starts in a format that plays almost anywhere.
 
-Built with Rust and [egui](https://github.com/emilk/egui). Under the hood it uses [yt-dlp](https://github.com/yt-dlp/yt-dlp), [deno](https://deno.com) and [ffmpeg](https://ffmpeg.org), which are downloaded automatically on first run.
+![dropdl after downloading an album and a video](docs/screenshot.png)
 
-## Features
+## Download
 
-- **Paste and go:** pressing Ctrl+V / ⌘V anywhere in the window queues the link right away. You can also type or paste into the box and press Enter.
-- **Smart format choice (Auto mode):**
-  - YouTube Music, SoundCloud, Bandcamp, Mixcloud and Audiomack links become **M4A** (the original AAC audio, without re-encoding, with cover art and tags). MP3 is available as an option.
-  - Everything else (YouTube, TikTok, Instagram, Facebook, Zoom, X, Vimeo, …) becomes **MP4 with H.264 + AAC**, which plays almost anywhere.
-  - YouTube Music songs, albums, artists and playlists become a music library: `Album Artist/Album (Year)/01 - Title.m4a`, with complete tags (MusicBrainz when a release matches), lyrics from LRCLIB or YouTube Music, a square cover and `cover.jpg`. Tracks you already have are skipped.
-  - You can force **Video (MP4)** or **Audio** instead.
-- **Self-provisioning tools:** on startup the app validates yt-dlp, deno, ffmpeg and ffprobe, downloads whatever is missing, and updates them when a new release exists.
-- **Portable single executable:** one ~7 MB `dropdl.exe` with no installer and no DLLs to ship. Tools and settings live in `bin/` and `config/` next to it, so it runs from any folder or USB drive. On macOS: a ~6.5 MB `dropdl.app` that keeps its data in `~/Library/Application Support/dropdl`.
-- **Connect Firefox:** reuses your Firefox login cookies for sites that need a session (Instagram, Facebook, private or age-restricted videos).
-- Sequential download queue with progress, cancel, and "show in folder".
-- Remembers the output folder, mode, audio format and Firefox connection.
+Get the latest version from [**GitHub Releases**](https://github.com/edarbieto/dropdl/releases/latest):
 
-## Usage
+| System | File |
+|---|---|
+| Windows 10 or 11 (64-bit) | `dropdl-windows-x64.exe` |
+| macOS 11 or later, Apple Silicon (M1 and newer) | `dropdl-macos-arm64.zip` |
 
-1. **Windows:** put `dropdl.exe` in any folder and run it. On first run, it creates `bin/` and `config/` beside itself.
-   **macOS:** unzip `dropdl-macos-arm64.zip` and open `dropdl.app`. The app is not notarized: the first time, allow it in System Settings > Privacy & Security ("Open Anyway").
-   Wait for the four tool indicators to turn green (the first run downloads about 200 MB of tools).
-2. Copy a link and press **Ctrl+V** (**⌘V**) in the window.
-3. Click a finished item to reveal the file in Explorer / Finder.
+There is nothing to install. On Windows, put `dropdl.exe` in any folder (or on a USB drive) and run it. On macOS, unzip the file and move `dropdl.app` to Applications.
 
-Downloads go to your *Downloads* folder by default. Use **Change…** to pick another folder. The music library (YouTube Music audio) goes to `dropdl` in your *Music* folder.
+### First launch
 
-## Building
+dropdl is free and not signed with a paid certificate, so the system warns you the first time:
 
-Requires Rust (stable, edition 2024).
+- **Windows:** SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS:** the first open is blocked ("dropdl" can't be opened / Apple could not verify it). Open **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to the dropdl message, then confirm.
+
+On the first run dropdl downloads the tools it uses (about 200 MB): [yt-dlp](https://github.com/yt-dlp/yt-dlp), [deno](https://deno.com) and [ffmpeg](https://ffmpeg.org). Wait until the four indicators at the top turn green. dropdl keeps them up to date on its own.
+
+## How to use
+
+1. Copy a link (YouTube, YouTube Music, TikTok, Instagram, X, Vimeo, SoundCloud, …).
+2. Click the dropdl window and press **Ctrl+V** (**⌘V**). The download starts right away. You can also paste into the box and press Enter.
+3. Click a finished item to show the file in Explorer or Finder.
+
+Paste as many links as you like: they wait in a queue and download one after another. Files go to your **Downloads** folder; use **Change…** to pick another one.
+
+## What you get
+
+- **Video sites** (YouTube, TikTok, Instagram, Facebook, X, Vimeo, Zoom, …): an **MP4** file (H.264 video, AAC audio) that plays on phones, TVs and editors.
+- **Audio sites** (SoundCloud, Bandcamp, Mixcloud, Audiomack): an **M4A** file with the original audio (not re-encoded), cover art and tags. Choose **MP3** instead if your player needs it.
+- **YouTube Music** songs, albums, artists and playlists go into a music library in the **dropdl** folder inside your **Music** folder:
+
+  ```
+  Music/dropdl/
+    Album Artist/
+      Album (Year)/
+        01 - Title.m4a
+        02 - Title.m4a
+        cover.jpg
+  ```
+
+  Each track gets complete tags (artist, album, track and disc number, year), the album cover and lyrics (synced when available). An artist link downloads all their albums, singles and EPs. Tracks you already have are skipped, so pasting an album again only fetches what is missing.
+
+To get only the audio of a video (or a video from a music site), switch the mode from **Auto** to **Audio** or **Video**.
+
+## Sites that need a login
+
+Instagram, Facebook, and private or age-restricted videos only work when you are logged in. dropdl can use your **Firefox** login:
+
+1. Log in to the site in Firefox.
+2. In dropdl, click **Connect Firefox**, then **Connect**.
+
+dropdl never copies or uploads your cookies: yt-dlp reads them from Firefox on your computer at download time. Only Firefox is supported, because other browsers lock their cookies away from other apps.
+
+**macOS:** macOS blocks apps from reading other apps' data. If dropdl says so, click **Open Privacy Settings**, add `dropdl.app` under **Full Disk Access**, and restart dropdl. After updating dropdl, remove it from that list and add it again. More in [docs/cookies.md](docs/cookies.md).
+
+## Privacy
+
+dropdl has no account, no telemetry and no ads. It only connects to:
+
+- the sites of the links you paste (through yt-dlp),
+- YouTube Music, [MusicBrainz](https://musicbrainz.org) and [LRCLIB](https://lrclib.net), for music library tags, covers and lyrics,
+- GitHub, gyan.dev (Windows) and martin-riedl.de (macOS), to download and update its tools.
+
+## Limitations
+
+- Windows (64-bit) and Macs with Apple Silicon only. Intel Macs can build it from source; Linux is planned.
+- Only Firefox can be connected for logins.
+- Zoom recordings protected by a passcode are not supported.
+- Some sites block certain networks or need a login (see above).
+- Only download content you have the right to download.
+
+If something fails, open the **Log** in dropdl and include it when you [report an issue](https://github.com/edarbieto/dropdl/issues).
+
+## For developers
+
+dropdl is written in Rust with [egui](https://github.com/emilk/egui). It requires Rust (stable, edition 2024).
 
 ```sh
 scripts/build-release.ps1      # Windows → dist/dropdl.exe (portable, dependency-checked)
-scripts/build-release.ps1 -Upx # same, compressed with UPX (~2.7 MB)
 scripts/bundle-macos.sh        # macOS → dist/dropdl.app + zip (ad-hoc signed)
 cargo test                     # unit tests (offline)
-cargo test -- --ignored --nocapture   # end-to-end test (network, see docs/testing.md)
+cargo test -- --ignored --nocapture   # end-to-end tests (network, see docs/testing.md)
 ```
 
-## Documentation
+Documentation:
 
 - [docs/architecture.md](docs/architecture.md): how the code is organized
 - [docs/download-rules.md](docs/download-rules.md): which format each link gets, and why
 - [docs/tooling.md](docs/tooling.md): data folders, and how tools are validated, installed and updated
 - [docs/cookies.md](docs/cookies.md): the "Connect Firefox" feature and troubleshooting
-- [docs/testing.md](docs/testing.md): how to test
-- [docs/release.md](docs/release.md): portable release build, size measurements and trade-offs
 - [docs/music-library.md](docs/music-library.md): music library mode for YouTube Music
 - [docs/platforms.md](docs/platforms.md): Windows/macOS differences, planned Linux support
-- [ROADMAP.md](ROADMAP.md): planned work
-
-## Status
-
-Video and audio downloads work as described above, on Windows and macOS (Apple Silicon). Since v0.3: a **music library mode** for YouTube Music. Songs, albums, whole artists and playlists download into a tagged library (`Album Artist/Album (Year)/01 - Title.m4a`) with covers, lyrics (synced when available) and disc numbers, using MusicBrainz when a release matches. See [ROADMAP.md](ROADMAP.md) for what comes next.
-
-## Limitations
-
-- Windows (x64) and macOS (Apple Silicon) for now. Intel Macs should work but are untested; Linux is on the roadmap.
-- Only Firefox can be connected for login cookies (see docs/cookies.md).
-- Zoom recordings protected by a passcode are not supported.
-- Some sites block certain networks or require a login. Use **Connect Firefox** in those cases.
-- Only download content you have the right to download.
+- [docs/testing.md](docs/testing.md): how to test
+- [docs/release.md](docs/release.md): release builds, size measurements, icon, license notices and publishing
+- [CHANGELOG.md](CHANGELOG.md) and [ROADMAP.md](ROADMAP.md)
 
 ## License
 
-Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT), at your option.
-
-The licenses of the Rust crates compiled into dropdl are in [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt).
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT), at your option. The licenses of the Rust crates compiled into dropdl are in [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in dropdl by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
