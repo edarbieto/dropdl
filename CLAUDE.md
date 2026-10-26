@@ -20,7 +20,7 @@ dropdl is a minimal egui desktop app (Windows and macOS) that downloads media fr
 - **Plan, then execute.** For anything beyond a small fix, first write a short plan (files to change, tests, docs, open decisions) and wait for the user's go-ahead. Then implement it, run the tests, and update the docs in the same change.
 - **Spike before designing on assumptions.** When behavior of an external service or tool is unknown, check it with a quick experiment and record the result (e.g. `docs/music-library.md`, Spike results).
 - **Ask only when something is unclear** or is a genuine decision (trade-offs, scope, naming the user cares about). Otherwise pick the sensible default, say so, and proceed. Offer a recommended option when asking.
-- **Current work:** the v0.3.0 release (first public release): testing on macOS and Windows, icon, README for users. Checklist in `ROADMAP.md`, publishing steps in `docs/release.md`. The music library mode (v0.3) is done; its design and spike results stay in `docs/music-library.md`.
+- **Current work:** the v0.3.0 release (first public release): testing on macOS and Windows (including the new icon on Windows), README for users. Checklist in `ROADMAP.md`, publishing steps in `docs/release.md`. The music library mode (v0.3) is done; its design and spike results stay in `docs/music-library.md`.
 
 ## Layout
 
@@ -36,7 +36,9 @@ src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
 src/tags.rs    writes music tags, cover and lyrics into M4A/MP3 files (lofty), cover.jpg
 src/lyrics.rs  lyrics lookup: LRCLIB (exact, then search filtered by length), then YouTube Music
 tests/fixtures/     recorded, pruned API responses for offline tests (never from a logged-in session; lyrics replaced by placeholder lines); audio/: silent M4A and MP3 for tag tests
-scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check), bundle-macos.sh (dist/dropdl.app + zip)
+scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check), bundle-macos.sh (dist/dropdl.app + zip), icons.sh (assets/ icons from the SVGs)
+assets/        app icon: SVG sources and the generated .ico, .icns and PNG (checked in)
+build.rs       Windows only: embeds the exe icon and version metadata (winresource)
 docs/          architecture, download rules, tooling, cookies, testing, release, platforms, plans (music-library)
 ROADMAP.md     planned work
 ```

@@ -26,6 +26,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$exe" "$app/Contents/MacOS/dropdl"
 cp THIRD-PARTY-LICENSES.txt "$app/Contents/Resources/"
+cp assets/icon.icns "$app/Contents/Resources/dropdl.icns"
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -36,6 +37,7 @@ cat > "$app/Contents/Info.plist" <<EOF
     <key>CFBundleIdentifier</key><string>io.github.edarbieto.dropdl</string>
     <key>CFBundleExecutable</key><string>dropdl</string>
     <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleIconFile</key><string>dropdl</string>
     <key>CFBundleVersion</key><string>$version</string>
     <key>CFBundleShortVersionString</key><string>$version</string>
     <key>LSMinimumSystemVersion</key><string>11.0</string>

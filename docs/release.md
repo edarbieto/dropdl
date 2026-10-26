@@ -73,9 +73,19 @@ Measured in October 2026 (Apple Silicon, variant G settings, Rust 1.99):
 | Artifact | Size |
 |---|---:|
 | `dropdl.app/Contents/MacOS/dropdl` | 6.54 MB (5.95 MB before the music library code and `lofty`) |
-| `dropdl-macos-arm64.zip` | 3.48 MB (3.43 MB before THIRD-PARTY-LICENSES.txt, 3.15 MB before the music library) |
+| `dropdl-macos-arm64.zip` | 3.55 MB (3.43 MB before THIRD-PARTY-LICENSES.txt and the icon, 3.15 MB before the music library) |
 
-Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway"). The app has no icon yet (see ROADMAP).
+Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway").
+
+## App icon
+
+The icon (an orange download arrow in a circle, on a dark rounded square) comes from two SVG sources in `assets/`: `icon.svg` (full size, for Windows) and `icon-macos.svg` (the same design on Apple's icon grid: an 824 px body on a 1024 px canvas). `scripts/icons.sh` renders them with [resvg](https://github.com/linebender/resvg) (`cargo install resvg --locked`) into the checked-in files:
+
+- `assets/icon.ico`: 16 to 256 px, embedded in `dropdl.exe` by `build.rs` with `winresource` (a Windows-only build dependency), together with the version metadata (version from `Cargo.toml`, product name and file description "dropdl", which Task Manager shows).
+- `assets/icon-256.png`: the window and taskbar icon on Windows, set at runtime (`app_icon` in `src/main.rs`). eframe already links a PNG decoder for its default egui icon, so this adds no code.
+- `assets/icon.icns`: copied into `dropdl.app` by `scripts/bundle-macos.sh` (`CFBundleIconFile`). On macOS `app_icon` returns an empty icon, so eframe keeps the bundle icon instead of replacing it in the Dock.
+
+Rerun `scripts/icons.sh` (on a Mac) after changing an SVG.
 
 ## License notices
 

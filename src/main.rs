@@ -31,10 +31,21 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("dropdl")
             .with_inner_size([560.0, 420.0])
-            .with_min_inner_size([420.0, 300.0]),
+            .with_min_inner_size([420.0, 300.0])
+            .with_icon(app_icon()),
         ..Default::default()
     };
     eframe::run_native("dropdl", options, Box::new(|cc| Ok(Box::new(App::new(cc, dirs)))))
+}
+
+/// Window and taskbar icon. On macOS the empty icon keeps the bundle's `icon.icns`
+/// (eframe would otherwise set its own at runtime).
+fn app_icon() -> egui::IconData {
+    #[cfg(target_os = "macos")]
+    return egui::IconData::default();
+    #[cfg(not(target_os = "macos"))]
+    eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon-256.png"))
+        .expect("embedded icon is a valid PNG")
 }
 
 #[derive(Serialize, Deserialize)]

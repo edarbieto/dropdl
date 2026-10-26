@@ -94,6 +94,7 @@ Both platforms:
 Windows:
 
 - [ ] `scripts/build-release.ps1` passes the dependency check.
+- [ ] `dist/dropdl.exe` shows the dropdl icon in Explorer, the window title bar and the taskbar, and Properties > Details shows product name dropdl and version 0.3.0. Task Manager lists the process as "dropdl".
 - [ ] Copy `dist/dropdl.exe` to an empty folder and run it: `bin/` and `config/` are created and all four indicators go from yellow (downloading) to green.
 - [ ] With an existing BtbN ffmpeg (version `N-…`) in `bin/`, the app replaces ffmpeg and ffprobe with the gyan.dev build (Log: `ffmpeg: updating N-… → 9.x`).
 - [ ] Replace `bin/yt-dlp.exe` with an older release and restart the app: it updates to the latest one.
@@ -107,6 +108,7 @@ Windows:
 macOS:
 
 - [ ] `scripts/bundle-macos.sh` passes the library check and signs the app.
+- [ ] `dropdl.app` shows the dropdl icon in Finder and in the Dock while running (not the egui logo, and not inside a gray rounded square).
 - [ ] Open `dist/dropdl.app`: tools go to `~/Library/Application Support/dropdl/bin` (first Log line), and nothing is written inside the bundle (`codesign --verify dist/dropdl.app` still passes).
 - [ ] A copy of the zip downloaded with a browser opens after "Open Anyway" in System Settings > Privacy & Security.
 - [ ] Cancel stops the download (`pgrep -fl yt-dlp` shows nothing).

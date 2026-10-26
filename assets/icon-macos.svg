@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Same design on Apple's icon grid: an 824 px body centered on the 1024 px canvas. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF8A4C"/>
+      <stop offset="1" stop-color="#E8463A"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#202124"/>
+  <g transform="translate(512 512) scale(0.873) translate(-512 -512)">
+    <circle cx="512" cy="512" r="330" fill="url(#g)"/>
+    <g fill="none" stroke="#fff" stroke-width="88" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M512 330 V660"/>
+      <path d="M380 535 L512 667 L644 535"/>
+    </g>
+  </g>
+</svg>
