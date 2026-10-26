@@ -99,7 +99,7 @@ Windows:
 - [ ] Copy `dist/dropdl.exe` to an empty folder and run it: `bin/` and `config/` are created and all four indicators go from yellow (downloading) to green.
 - [ ] With an existing BtbN ffmpeg (version `N-…`) in `bin/`, the app replaces ffmpeg and ffprobe with the gyan.dev build (Log: `ffmpeg: updating N-… → 9.x`).
 - [ ] Replace `bin/yt-dlp.exe` with an older release and restart the app: it updates to the latest one.
-- [ ] Run from a read-only folder: data falls back to the per-user folder (first Log line).
+- [ ] Run from a read-only folder: data falls back to the per-user folder (second Log line, after the version).
 - [ ] Cancel stops the download (no leftover yt-dlp or ffmpeg process in Task Manager).
 - [ ] Clicking a finished item reveals the file in Explorer.
 - [ ] Music library names on NTFS: an album or track title with `: ? " / *` (e.g. "CMND/CTRL") or a trailing dot gets `_`, and a deep `Album Artist/Album (Year)/NN - Title.m4a` path inside a long output folder still downloads.
@@ -110,7 +110,7 @@ macOS:
 
 - [ ] `scripts/bundle-macos.sh` passes the library check and signs the app.
 - [ ] `dropdl.app` shows the dropdl icon in Finder and in the Dock while running (not the egui logo, and not inside a gray rounded square).
-- [ ] Open `dist/dropdl.app`: tools go to `~/Library/Application Support/dropdl/bin` (first Log line), and nothing is written inside the bundle (`codesign --verify dist/dropdl.app` still passes).
+- [ ] Open `dist/dropdl.app`: tools go to `~/Library/Application Support/dropdl/bin` (second Log line, after the version), and nothing is written inside the bundle (`codesign --verify dist/dropdl.app` still passes).
 - [ ] A copy of the zip downloaded with a browser opens after "Open Anyway" in System Settings > Privacy & Security.
 - [ ] Cancel stops the download (`pgrep -fl yt-dlp` shows nothing).
 - [ ] Clicking a finished item reveals the file in Finder.

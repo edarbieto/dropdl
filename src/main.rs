@@ -203,6 +203,7 @@ impl App {
             tx,
             rx,
         };
+        app.log(format!("dropdl {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH));
         let kind = if app.dirs.portable { "portable" } else { "per-user" };
         let base = app.dirs.bin.parent().unwrap_or(&app.dirs.bin).display().to_string();
         app.log(format!("data folder ({kind}): {base}"));

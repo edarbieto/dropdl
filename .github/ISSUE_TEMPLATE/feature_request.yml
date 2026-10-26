@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an idea for dropdl
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        dropdl aims to stay small and simple: one window, few settings, good defaults. Ideas that fit that are the most likely to land.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like dropdl to do?
+      description: The problem you want to solve, and how you imagine it working.
+    validations:
+      required: true

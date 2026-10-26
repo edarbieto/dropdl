@@ -13,6 +13,8 @@ Get the latest version from [**GitHub Releases**](https://github.com/edarbieto/d
 | Windows 10 or 11 (64-bit) | `dropdl-windows-x64.exe` |
 | macOS 11 or later, Apple Silicon (M1 and newer) | `dropdl-macos-arm64.zip` |
 
+Each release lists SHA-256 checksums and build provenance (`gh attestation verify <file> --repo edarbieto/dropdl`) so you can check that a file was built from this repository.
+
 There is nothing to install. On Windows, put `dropdl.exe` in any folder (or on a USB drive) and run it. On macOS, unzip the file and move `dropdl.app` to Applications.
 
 ### First launch
@@ -90,6 +92,8 @@ scripts/bundle-macos.sh        # macOS → dist/dropdl.app + zip (ad-hoc signed)
 cargo test                     # unit tests (offline)
 cargo test -- --ignored --nocapture   # end-to-end tests (network, see docs/testing.md)
 ```
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Documentation:
 

@@ -12,7 +12,7 @@ dropdl is a minimal egui desktop app (Windows and macOS) that downloads media fr
 - **UI text is in English.**
 - **Compatibility first:** video → MP4 (H.264 + AAC), audio → M4A (AAC copied without re-encoding) or MP3. Rules live in `src/job.rs` and are documented in `docs/download-rules.md`. Keep the two in sync.
 - **Never put personal or machine-specific information** (user names, absolute home paths, emails, installed apps) in code, docs or test fixtures. Use placeholders such as `%LOCALAPPDATA%`.
-- **Git:** commit only when the user asks. Never push or rewrite history without explicit permission.
+- **Git:** commit only when the user asks. Never push or rewrite history without explicit permission. Work happens on branches merged into `master` through pull requests that only the maintainer merges (CONTRIBUTING.md).
 - **Distribution goal:** a single, portable `.exe` that is as small as possible, a small `dropdl.app` on macOS, and later Linux builds. Avoid dependencies that need DLLs, installers or platform-specific system libraries (e.g. prefer rustls over OpenSSL). Check the size impact and license of new dependencies, and regenerate `THIRD-PARTY-LICENSES.txt` (`docs/release.md`).
 
 ## Workflow
@@ -39,6 +39,7 @@ tests/fixtures/     recorded, pruned API responses for offline tests (never from
 scripts/       build-release.ps1 (dist/dropdl.exe, optional UPX), check-deps.ps1 (PE import check), bundle-macos.sh (dist/dropdl.app + zip), icons.sh (assets/ icons from the SVGs)
 assets/        app icon: SVG sources and the generated .ico, .icns and PNG (checked in)
 build.rs       Windows only: embeds the exe icon and version metadata (winresource)
+.github/       CI (tests on push/PR) and Release (draft release from a v* tag) workflows, issue and PR templates
 docs/          architecture, download rules, tooling, cookies, testing, release, platforms, plans (music-library)
 ROADMAP.md     planned work
 ```

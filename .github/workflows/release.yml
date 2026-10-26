@@ -1,0 +1,100 @@
+# Builds the release files from a version tag (v0.3.0, or v0.3.0-rc.1 for a pre-release)
+# and creates a draft GitHub release with them. Publishing the draft is a manual step.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  RUST_VERSION: "1.99.1"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            file: dropdl-windows-x64.exe
+          - os: macos-14
+            file: dropdl-macos-arm64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          rustup default "$RUST_VERSION"
+      - name: Check the tag against Cargo.toml
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          if [ "${tag%%-*}" != "$version" ]; then
+            echo "tag $GITHUB_REF_NAME doesn't match Cargo.toml version $version" >&2
+            exit 1
+          fi
+      - run: cargo test --locked
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+          Move-Item dist/dropdl.exe dist/${{ matrix.file }}
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: scripts/bundle-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.file }}
+          path: dist/${{ matrix.file }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and license notices
+        run: |
+          cp THIRD-PARTY-LICENSES.txt dist/
+          cd dist
+          sha256sum dropdl-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/dropdl-windows-x64.exe
+            dist/dropdl-macos-arm64.zip
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          # Release notes: the CHANGELOG section of this version (without its heading).
+          awk -v v="${version%%-*}" '
+            /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+            found
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "no CHANGELOG.md section for ${version%%-*}" >&2
+            exit 1
+          fi
+          prerelease=""
+          case "$version" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$tag" dist/* --draft $prerelease \
+            --title "dropdl $version" --notes-file notes.md --verify-tag

@@ -46,13 +46,22 @@ Windows Defender (`MpCmdRun -Scan -ScanType 3`) found no threats in G, G+UPX or 
 
 ## Publishing a release
 
-Until CI builds exist (ROADMAP v0.4), releases are built locally: the Windows exe on Windows, the macOS zip on a Mac, both from the tagged commit.
+Releases are built by GitHub Actions from a version tag, never from a local machine:
 
-1. Bump `version` in `Cargo.toml`, add the release to `CHANGELOG.md`, and commit.
-2. Build on each platform from a clean checkout of that commit: `scripts/build-release.ps1` (Windows) and `scripts/bundle-macos.sh` (macOS). Both fail if the binary links a non-system library.
-3. Name the files by platform: `dropdl-windows-x64.exe` and `dropdl-macos-arm64.zip`. The zip carries `THIRD-PARTY-LICENSES.txt` inside the app; for Windows it is uploaded next to the exe (see License notices).
-4. Write checksums: `shasum -a 256 dropdl-* > SHA256SUMS.txt` (macOS) or `Get-FileHash -Algorithm SHA256` (Windows).
-5. Tag and publish: `git tag -a v0.3.0 -m "dropdl 0.3.0"`, `git push origin v0.3.0`, then `gh release create v0.3.0 dropdl-windows-x64.exe dropdl-macos-arm64.zip THIRD-PARTY-LICENSES.txt SHA256SUMS.txt --title "dropdl 0.3.0" --notes-file <notes>` with the CHANGELOG section as notes.
+- `.github/workflows/ci.yml` runs `cargo test` on Windows and macOS for every push to `master` and every pull request.
+- `.github/workflows/release.yml` runs on a `v*` tag. On `windows-latest` and `macos-14` (arm64) it checks that the tag matches the `Cargo.toml` version, runs `cargo test` and the release scripts (`scripts/build-release.ps1`, `scripts/bundle-macos.sh`; both fail on a non-system library). A last job adds `THIRD-PARTY-LICENSES.txt` and `SHA256SUMS.txt`, records [build provenance](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations) for both binaries, and creates a **draft** release with the version's `CHANGELOG.md` section as notes.
+
+Both workflows pin the Rust version (`RUST_VERSION`), so sizes stay comparable; bump it on purpose.
+
+Steps:
+
+1. Bump `version` in `Cargo.toml` if needed, replace "(unreleased)" in the `CHANGELOG.md` heading with the date, and merge to `master`.
+2. Tag and push: `git tag -a v0.3.0 -m "dropdl 0.3.0"` and `git push origin v0.3.0`.
+3. Wait for the Release workflow, then review the draft on GitHub (files, notes) and click **Publish release**.
+
+A tag with a suffix (`v0.3.0-rc.1`) makes a pre-release from the same version's notes, to try the workflow. Delete its draft and tag afterwards (`gh release delete v0.3.0-rc.1 --cleanup-tag`).
+
+The release contains `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip` (with `THIRD-PARTY-LICENSES.txt` inside the app), `THIRD-PARTY-LICENSES.txt` and `SHA256SUMS.txt`. Anyone can check where a binary came from with `gh attestation verify <file> --repo edarbieto/dropdl`.
 
 Don't ship the UPX build: packed executables, unsigned, from a downloader app are the most likely to be flagged by antivirus engines (see Trade-offs).
 

@@ -57,8 +57,10 @@ Release contents:
 
 Publishing (steps in [docs/release.md](docs/release.md#publishing-a-release)):
 
-- [ ] Tag `v0.3.0` on `master` and create the GitHub release with `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip` and `SHA256SUMS.txt`
-- [ ] Repository: social preview image, issue templates (bug report asking for OS, dropdl version and the Log)
+- [x] CI: tests on every push and pull request, release builds from a tag (`.github/workflows/`)
+- [ ] Tag `v0.3.0` on `master`; the Release workflow creates the draft with `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip`, `THIRD-PARTY-LICENSES.txt` and `SHA256SUMS.txt`; review and publish it
+- [x] Issue templates (bug report asking for the system and the Log, whose first line is the version), pull request template, CONTRIBUTING.md
+- [ ] Repository: description, topics, social preview image, branch protection for `master` (pull requests only)
 
 ## v0.4: macOS and Linux (macOS done, Linux open)
 
@@ -71,7 +73,7 @@ Design: [docs/platforms.md](docs/platforms.md).
 - [x] macOS `.app` (Apple Silicon, ad-hoc signed): `scripts/bundle-macos.sh`
 - [ ] Linux: tool downloads (`.tar.xz` for BtbN), `xdg-open`, Noto CJK fonts, AppImage + ELF tarball
 - [ ] Intel Mac test, or a universal binary
-- [ ] CI builds on GitHub Actions (release artifacts built from the tagged commit, with checksums and build provenance)
+- [x] CI builds on GitHub Actions (release artifacts built from the tagged commit, with checksums and build provenance); Linux joins the matrix with Linux support
 
 ## Next
 

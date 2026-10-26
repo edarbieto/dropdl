@@ -1,0 +1,38 @@
+name: Bug report
+description: Something doesn't download or doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please check that the link opens in a browser first, and that you are allowed to download it.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link
+      description: The link you pasted, if it is public. Leave it out for private content.
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: In dropdl, open **Log**, click **Copy** and paste it here. Its first line shows the dropdl version.
+      render: text
+    validations:
+      required: true
