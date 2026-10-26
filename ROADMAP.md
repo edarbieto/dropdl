@@ -36,9 +36,9 @@ Design and implementation plan: [docs/music-library.md](docs/music-library.md). 
 - [x] Playlists: songs in their album folders, items without an album (music videos) in a playlist folder
 - [x] Skip tracks whose file already exists, checked before downloading
 
-## v0.3.0 release: first public release (in progress)
+## v0.3.0 release: first public release (published 2026-10-26)
 
-The code for v0.3 is done (`Cargo.toml` is at 0.3.0). Before tagging `v0.3.0` and publishing builds:
+Published on [GitHub Releases](https://github.com/edarbieto/dropdl/releases/tag/v0.3.0). The open Windows items carry over to the next release.
 
 Testing (the manual checklist and e2e tests are in [docs/testing.md](docs/testing.md)):
 
@@ -58,9 +58,10 @@ Release contents:
 Publishing (steps in [docs/release.md](docs/release.md#publishing-a-release)):
 
 - [x] CI: tests on every push and pull request, release builds from a tag (`.github/workflows/`)
-- [ ] Tag `v0.3.0` on `master`; the Release workflow creates the draft with `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip`, `THIRD-PARTY-LICENSES.txt` and `SHA256SUMS.txt`; review and publish it
+- [x] Tag `v0.3.0` on `master`; the Release workflow creates the draft with `dropdl-windows-x64.exe`, `dropdl-macos-arm64.zip`, `THIRD-PARTY-LICENSES.txt` and `SHA256SUMS.txt`; review and publish it
 - [x] Issue templates (bug report asking for the system and the Log, whose first line is the version), pull request template, CONTRIBUTING.md
-- [ ] Repository: description, topics, social preview image, branch protection for `master` (pull requests only)
+- [x] Repository: description, topics, branch protection for `master` (pull requests with passing CI only)
+- [ ] Social preview image (Settings > General > Social preview)
 
 ## v0.4: macOS and Linux (macOS done, Linux open)
 

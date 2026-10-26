@@ -20,7 +20,7 @@ dropdl is a minimal egui desktop app (Windows and macOS) that downloads media fr
 - **Plan, then execute.** For anything beyond a small fix, first write a short plan (files to change, tests, docs, open decisions) and wait for the user's go-ahead. Then implement it, run the tests, and update the docs in the same change.
 - **Spike before designing on assumptions.** When behavior of an external service or tool is unknown, check it with a quick experiment and record the result (e.g. `docs/music-library.md`, Spike results).
 - **Ask only when something is unclear** or is a genuine decision (trade-offs, scope, naming the user cares about). Otherwise pick the sensible default, say so, and proceed. Offer a recommended option when asking.
-- **Current work:** the v0.3.0 release (first public release): testing on macOS and Windows (including the new icon on Windows). Checklist in `ROADMAP.md`, publishing steps in `docs/release.md`. The music library mode (v0.3) is done; its design and spike results stay in `docs/music-library.md`.
+- **Current work:** v0.3.0 is published (first public release). Open: the Windows testing skipped for it (ROADMAP, v0.3.0 release), then the "Next" items. Every change goes through a branch and a pull request; releases are built by `.github/workflows/release.yml` from a tag (`docs/release.md`). The music library design and spike results stay in `docs/music-library.md`.
 
 ## Layout
 
