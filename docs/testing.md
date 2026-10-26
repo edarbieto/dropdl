@@ -90,6 +90,7 @@ Both platforms:
 - [ ] A title in Chinese, Japanese or Korean renders without boxes.
 - [ ] Connect Firefox → Connect shows "Connected (N cookies found)".
 - [ ] Settings survive a restart.
+- [ ] Save to, Music library and the Log (including yt-dlp's command lines, and **Copy**) show paths in the home folder as `~/…` (`~\…` on Windows), never the user name.
 
 Windows:
 

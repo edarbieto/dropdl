@@ -10,7 +10,7 @@ mod tags;
 mod tools;
 mod ytm;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -272,8 +272,9 @@ impl App {
         self.next_id += 1;
     }
 
+    /// Adds a line to the Log, with paths in the home folder shortened to `~` (see `display_path`).
     fn log(&mut self, line: String) {
-        self.log.push(line);
+        self.log.push(tilde_in(&line, dirs::home_dir().as_deref()));
         if self.log.len() > LOG_LIMIT {
             self.log.drain(..self.log.len() - LOG_LIMIT);
         }
@@ -530,7 +531,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.label("Save to:");
             if ui
-                .link(self.settings.out_dir.display().to_string())
+                .link(display_path(&self.settings.out_dir))
                 .on_hover_text("Open folder")
                 .clicked()
             {
@@ -550,7 +551,7 @@ impl App {
             ui.horizontal(|ui| {
                 ui.label("Music library:");
                 if ui
-                    .link(library.display().to_string())
+                    .link(display_path(&library))
                     .on_hover_text("YouTube Music audio downloads go here. Open folder")
                     .clicked()
                 {
@@ -747,6 +748,27 @@ fn open_privacy_settings() {
         .spawn();
 }
 
+/// `path` with the home folder shortened to `~`, so screenshots and logs don't show the user name.
+fn display_path(path: &Path) -> String {
+    tilde(path, dirs::home_dir().as_deref())
+}
+
+fn tilde(path: &Path, home: Option<&Path>) -> String {
+    match home.and_then(|home| path.strip_prefix(home).ok()) {
+        Some(rest) if rest.as_os_str().is_empty() => "~".into(),
+        Some(rest) => format!("~{}{}", std::path::MAIN_SEPARATOR, rest.display()),
+        None => path.display().to_string(),
+    }
+}
+
+/// Replaces every path inside `home` in `text` with `~`. Only `home` followed by a separator
+/// matches, so `/Users/ana` doesn't change `/Users/anabel`.
+fn tilde_in(text: &str, home: Option<&Path>) -> String {
+    let Some(home) = home else { return text.to_string() };
+    let sep = std::path::MAIN_SEPARATOR;
+    text.replace(&format!("{}{sep}", home.display()), &format!("~{sep}"))
+}
+
 /// Shows `file` selected in Explorer / Finder.
 fn reveal(file: &std::path::Path) {
     #[cfg(windows)]
@@ -777,6 +799,29 @@ mod tests {
         assert_eq!(saved("firefox").repair().browser.as_deref(), Some("firefox"));
         let missing = Settings { out_dir: "/no/such/folder".into(), ..Settings::default() };
         assert_eq!(missing.repair().out_dir, Settings::default().out_dir);
+    }
+
+    #[test]
+    fn tilde_paths() {
+        let home = Path::new("/home/user");
+        let sep = std::path::MAIN_SEPARATOR;
+        assert_eq!(tilde(&home.join("Downloads"), Some(home)), format!("~{sep}Downloads"));
+        assert_eq!(tilde(home, Some(home)), "~");
+        assert_eq!(tilde(Path::new("/home/username/x"), Some(home)), "/home/username/x");
+        assert_eq!(tilde(Path::new("/media/usb"), Some(home)), "/media/usb");
+        assert_eq!(tilde(Path::new("/media/usb"), None), "/media/usb");
+    }
+
+    #[test]
+    fn tilde_log_lines() {
+        let home = Path::new("/home/user");
+        let s = std::path::MAIN_SEPARATOR;
+        let line = format!("-P /home/user{s}Music{s}dropdl --ffmpeg-location /home/user{s}bin /home/username{s}x");
+        assert_eq!(
+            tilde_in(&line, Some(home)),
+            format!("-P ~{s}Music{s}dropdl --ffmpeg-location ~{s}bin /home/username{s}x")
+        );
+        assert_eq!(tilde_in(&line, None), line);
     }
 
     /// An app without a window, and a sender for its messages.
