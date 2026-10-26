@@ -545,6 +545,8 @@ mod tests {
         zip.write_all(b"lib").unwrap();
         zip.start_file("tool", opts.unix_permissions(0o755)).unwrap();
         zip.write_all(b"#!/bin/sh\necho 1.0\n").unwrap();
+        // extract_tree rejects symlinks on Windows, where no program-folder tool has one.
+        #[cfg(unix)]
         zip.add_symlink("current", "tool", opts).unwrap();
         zip.finish().unwrap();
     }
