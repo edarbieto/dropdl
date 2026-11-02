@@ -26,6 +26,8 @@ dropdl is free and not signed with a paid certificate, so the system warns you t
 
 On the first run dropdl downloads the tools it uses (about 200 MB): [yt-dlp](https://github.com/yt-dlp/yt-dlp), [deno](https://deno.com) and [ffmpeg](https://ffmpeg.org). Wait until the four indicators at the top turn green. dropdl keeps them up to date on its own.
 
+When a new dropdl is out, **⬆ Update to …** appears below the indicators: click it and dropdl installs the new version and restarts. Copies older than 0.3.1 don't have this button, so replace those by hand once.
+
 ## How to use
 
 1. Copy a link (YouTube, YouTube Music, TikTok, Instagram, X, Vimeo, SoundCloud, …).
@@ -33,6 +35,12 @@ On the first run dropdl downloads the tools it uses (about 200 MB): [yt-dlp](htt
 3. Click a finished item to show the file in Explorer or Finder.
 
 Paste as many links as you like: they wait in a queue and download one after another. Files go to your **Downloads** folder; use **Change…** to pick another one.
+
+### Search music
+
+Type something that isn't a link in the box and press Enter to search YouTube Music. Pick **Songs**, **Albums**, **Artists** or **Playlists**, and press **⬇** on a result to add it to the queue. Results always go to the music library as audio, whatever the mode. An artist asks first, because it queues all their releases. **Load more** shows the next results, and **Close** goes back to the queue.
+
+On a result, **➡** opens an album, artist or playlist so you can pick single songs, and **Back** returns to the list. **👁** shows the cover larger, and **⏵** plays 30 seconds of a song, or of an album's most played song.
 
 ## What you get
 
@@ -70,7 +78,9 @@ dropdl has no account, no telemetry and no ads. It only connects to:
 
 - the sites of the links you paste (through yt-dlp),
 - YouTube Music, [MusicBrainz](https://musicbrainz.org) and [LRCLIB](https://lrclib.net), for music library tags, covers and lyrics,
-- GitHub, gyan.dev (Windows) and martin-riedl.de (macOS), to download and update its tools.
+- YouTube Music and Google's image servers when you search: what you type goes to YouTube Music, and dropdl doesn't save it,
+- Apple's iTunes search when you preview a song: only its artist and title,
+- GitHub, gyan.dev (Windows) and martin-riedl.de (macOS), to download and update its tools. GitHub also tells dropdl whether a new version of it exists, and serves that version when you update.
 
 ## Limitations
 

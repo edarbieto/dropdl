@@ -91,9 +91,10 @@ pub fn parse_url(text: &str) -> Option<String> {
     if t.starts_with("http://") || t.starts_with("https://") {
         return Some(t.to_string());
     }
-    // Accept "youtu.be/abc" style links without a scheme.
-    let host = t.split('/').next()?;
-    (host.contains('.') && !host.starts_with('.')).then(|| format!("https://{t}"))
+    // Accept "youtu.be/abc" style links without a scheme. A path is required:
+    // the text box also searches, and "R.E.M." or "will.i.am" are not links.
+    let (host, path) = t.split_once('/')?;
+    (!path.is_empty() && host.contains('.') && !host.starts_with('.')).then(|| format!("https://{t}"))
 }
 
 fn host(url: &str) -> &str {
@@ -374,6 +375,9 @@ mod tests {
         assert_eq!(parse_url("youtu.be/abc"), Some("https://youtu.be/abc".into()));
         assert_eq!(parse_url("hello world"), None);
         assert_eq!(parse_url("hello"), None);
+        assert_eq!(parse_url("R.E.M."), None);
+        assert_eq!(parse_url("will.i.am"), None);
+        assert_eq!(parse_url("AC/DC"), None);
     }
 
     #[test]

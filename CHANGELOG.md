@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.1 (2026-11-01)
+
+### Search
+
+- Search YouTube Music from the text box: type anything that isn't a link and press Enter. Results for songs, albums, artists and playlists show their cover, title, artist, year or length, and an **E** for explicit versions.
+- **⬇** adds a result to the queue, always as music library audio. An artist asks first, because it queues all their releases. **Load more** shows the next results, and a line below them shows the running download.
+- **➡** opens an album, artist or playlist: an artist's top songs, albums, singles and EPs and playlists, and the songs of each, down to a single song. **Back** returns to the same place in the list, without loading it again.
+- Albums show how many songs they have.
+- **👁** shows a cover larger.
+- **⏵** plays 30 seconds of a song, and an album's most played song. dropdl uses Apple's ready-made preview when it finds the same song, usually in about a second, and otherwise takes the clip from the song itself, which takes several seconds.
+- Searches, pages and covers stay in memory only. Preview clips stay in a temp folder until dropdl closes.
+
+### Updates
+
+- When a new dropdl is out, **⬆ Update to …** installs it and restarts. If it can't, because of a read-only folder or a platform without a build, its download page opens. On macOS, Connect Firefox needs Full Disk Access again after each update.
+
+### Changes
+
+- Text without `http://` or `https://` only counts as a link when it has a path (`youtu.be/abc`). Names such as `R.E.M.` are searched, and a bare domain no longer starts a download.
+
 ## 0.3.0 (2026-10-26)
 
 First public release. Builds for Windows (x64) and macOS (Apple Silicon).

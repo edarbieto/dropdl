@@ -63,6 +63,22 @@ Publishing (steps in [docs/release.md](docs/release.md#publishing-a-release)):
 - [x] Repository: description, topics, branch protection for `master` (pull requests with passing CI only)
 - [ ] Social preview image (Settings > General > Social preview)
 
+## v0.3.1: music search
+
+Design: [docs/music-library.md](docs/music-library.md#search).
+
+- [x] Search YouTube Music from the text box: Songs (first tab), Albums, Artists and Playlists
+- [x] Result rows with a 56 px cover, title, subtitle and explicit badge; covers in memory only
+- [x] Add to the queue as library audio, confirmation for artists, a progress line while results hide the queue
+- [x] Load more, without repeated results
+- [x] Open albums, artists and playlists down to single songs, with Back
+- [x] Song counts on albums, and larger covers
+- [x] 30-second previews of songs, and of an album's most played song
+- [x] Update dropdl itself from a button, with the download page as the fallback
+- [x] Manual search checks on macOS
+- [ ] The first real update, from an installed v0.3.1 that Chrome downloaded (quarantined) to the next release
+- [ ] Windows: the search checks, the self-update, the release size and the rest of the open v0.3.0 Windows testing
+
 ## v0.4: macOS and Linux (macOS done, Linux open)
 
 Design: [docs/platforms.md](docs/platforms.md).

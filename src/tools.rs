@@ -238,7 +238,7 @@ fn comparable(version: &str) -> &str {
 
 /// Latest version behind `url`, read from its redirect without following it.
 /// One small request, which doesn't count against GitHub's API rate limit.
-fn latest_version(url: &str) -> Option<String> {
+pub fn latest_version(url: &str) -> Option<String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .max_redirects(0)
         .http_status_as_error(false)
@@ -313,7 +313,7 @@ fn fetch_all(downloads: &[(String, Fetch)], bin: &Path, progress: &mut dyn FnMut
 }
 
 /// Downloads `url` to `dest` atomically (via a `.part` file).
-fn download(url: &str, dest: &Path, progress: &mut dyn FnMut(f32)) -> Result<(), String> {
+pub fn download(url: &str, dest: &Path, progress: &mut dyn FnMut(f32)) -> Result<(), String> {
     let part = dest.with_extension("part");
     let result = (|| {
         let mut resp = ureq::get(url).call().map_err(|e| format!("{url}: {e}"))?;
@@ -464,7 +464,7 @@ fn symlink(_link: &str, target: &Path) -> Result<(), String> {
     Err(format!("symlinks are not supported: {}", target.display()))
 }
 
-fn make_executable(_path: &Path) -> Result<(), String> {
+pub fn make_executable(_path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

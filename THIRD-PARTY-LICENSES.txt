@@ -4566,7 +4566,7 @@ SOFTWARE.
 MIT License (MIT)
 
 Used by:
-- dropdl 0.3.0
+- dropdl 0.3.1
 
 MIT License
 
