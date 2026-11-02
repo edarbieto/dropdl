@@ -86,7 +86,24 @@ Measured in October 2026 (Apple Silicon, variant G settings, Rust 1.99):
 | `dropdl.app/Contents/MacOS/dropdl` | 6.54 MB locally, 6.63 MB from the Release workflow (5.95 MB before the music library code and `lofty`) |
 | `dropdl-macos-arm64.zip` | 3.55 MB locally, 3.58 MB from the Release workflow (3.43 MB before THIRD-PARTY-LICENSES.txt and the icon, 3.15 MB before the music library) |
 
+Music search (November 2026): the local binary goes from 6.61 to 6.71 MB (+99 KB, JPEG decoding). The self-update adds about 20 KB, and no new crates: `ring` was already linked through rustls. The Windows size is measured with the next Release workflow.
+
 Without an Apple Developer ID and notarization, Gatekeeper blocks the first launch of a copy downloaded with a browser; the user allows it once in System Settings > Privacy & Security ("Open Anyway").
+
+## Self-update
+
+`src/update.rs` depends on what the Release workflow publishes: the file names in `update::asset` and `SHA256SUMS.txt`. Rename a file there and older copies can't update.
+
+At startup and on **Check updates**, dropdl reads the version from the `releases/latest` redirect, which skips drafts and pre-releases. **⬆ Update to …** then:
+
+1. Downloads the file and `SHA256SUMS.txt` into `.dropdl-update/` next to the app, and verifies the checksum. That catches broken downloads, not a replaced release: both files come from the same place, so the protection is HTTPS and the GitHub account.
+2. On macOS, unpacks with `ditto` and runs `codesign --verify`.
+3. Renames the app to `.dropdl-old` and moves the new one into its place, restoring the old one if that fails. A running app can be renamed, and on macOS keeps running.
+4. Closes, starts the new build from `on_exit`, and the new build removes `.dropdl-old` two seconds after it starts.
+
+Any failure, a platform without a build (Intel Macs, Linux) and a macOS run outside a bundle open the release page instead. Files dropdl downloads carry no quarantine flag, so Gatekeeper asks nothing about an update.
+
+Measured in November 2026 on macOS 27, with an ad-hoc signed app without the quarantine flag: an ad-hoc app can replace itself in `/Applications` with no App Management prompt, and a build set to 0.2.9 updated itself to the real v0.3.0 in 7 to 8 seconds, in a temp folder and in `/Applications`. A copy installed with a browser does have the flag; that first update is still to be seen (ROADMAP). Because the signature changes, Full Disk Access is lost on every update (platforms.md).
 
 ## App icon
 

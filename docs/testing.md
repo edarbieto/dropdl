@@ -6,7 +6,7 @@
 cargo test
 ```
 
-These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back), the library layout (`src/library.rs`: name sanitizing, folder and file names, track selection, routing, temp file cleanup), and lyrics (`src/lyrics.rs`: LRCLIB records, search results filtered by length; `src/ytm.rs`: the lyrics tab and text).
+These cover URL parsing, audio/video and single/collection classification, and parsing of yt-dlp progress lines (`src/job.rs`), tool download sources per platform, version parsing from redirects and the program-folder install (`src/tools.rs`), loading of saved settings (`src/main.rs`), plus the music metadata: YouTube Music page parsing (`src/ytm.rs`), MusicBrainz candidate order and matching (`src/musicbrainz.rs`), link classification and title normalization (`src/music.rs`), tag writing (`src/tags.rs`: tags, cover and lyrics written to the silent M4A and MP3 files in `tests/fixtures/audio/`, then read back), the library layout (`src/library.rs`: name sanitizing, folder and file names, track selection, routing, temp file cleanup), lyrics (`src/lyrics.rs`: LRCLIB records, search results filtered by length; `src/ytm.rs`: the lyrics tab and text), the self-update (`src/update.rs`: version order, release file per platform, app bundles, checksums, the swap and its rollback; `src/main.rs`: update states, no new jobs meanwhile), and music search (`src/ytm.rs`: result parsing, links and thumbnail choice; `src/search.rs`: repeated results, the end of the list, allowed image hosts and covers; `src/main.rs`: results as library audio, late responses dropped).
 
 The music tests read recorded responses from `tests/fixtures/`. They are minified and stripped of `responseContext` (which holds a visitor id), tracking fields and menus (except the "View song credits" entry, which holds the song id). Recorded responses must never come from a logged-in session. Lyrics in fixtures (LRCLIB, YouTube Music) are replaced by placeholder lines such as `[00:01.32] line 1`, and LRCLIB's `lyricsfile` field is removed.
 
@@ -28,7 +28,27 @@ DROPDL_TEST_MUSIC_URL="https://music.youtube.com/watch?v=zKSsP2084nU" cargo test
 
 (PowerShell: set `$env:DROPDL_TEST_MUSIC_URL` first.)
 
+```sh
+cargo test search::tests::live -- --ignored --nocapture
+```
+
+searches every tab against live YouTube Music: results, links, decoded covers and a second page without repeats. It also opens an album, an artist with a full shelf and top songs, and a playlist (`search::tests::live_pages`).
+
+```sh
+cargo test preview::tests::live -- --ignored --nocapture
+```
+
+fetches Apple's clip of a real song, and cuts 30 seconds of another through yt-dlp into `DROPDL_TEST_OUT` (it needs the tools, so set `DROPDL_HOME`).
+
 It prints each album as `Album artist/Album (Year)` with its tracks, artists, song links and the MusicBrainz match. An artist link prints every release (slow: MusicBrainz allows one request per second).
+
+```sh
+cargo test update::tests::live -- --ignored --nocapture
+```
+
+downloads the latest release's build for this platform and checks it against `SHA256SUMS.txt`. It installs nothing.
+
+To try a whole update, copy the repo somewhere else, set an older `version` in its `Cargo.toml`, run `scripts/bundle-macos.sh` there and open that app: **⬆ Update to …** installs the published release over it.
 
 ## End-to-end test (network)
 
@@ -42,6 +62,8 @@ cargo test -- --ignored --nocapture
 2. Downloads each test URL in Auto mode, then checks that exactly one file is produced with the expected extension (`.m4a` for audio sites, `.mp4` otherwise).
 
 `library::e2e::song` downloads a YouTube Music song into `DROPDL_TEST_OUT/library/` in the library layout, checks the tags, the lyrics, the cover and `cover.jpg`, then runs again and checks that the song is skipped.
+
+`library::e2e::search_result` searches for a song and downloads the result into `DROPDL_TEST_OUT/library-search/`.
 
 `library::e2e::artist` uses two small artists (see music-library.md, Test artists): it checks that Downface queues its 2 albums and downloads *Within* whole (9 tracks, ~40 MB), and that Glassjaw queues its albums, EP and singles, then downloads one single into its own folder. It takes a few minutes.
 
@@ -85,6 +107,19 @@ Both platforms:
 - [ ] A YouTube Music playlist with songs and videos puts the songs in their album folders and the videos in a folder named after the playlist; progress shows `[i/n]` over the whole playlist.
 - [ ] A YouTube Music artist link (e.g. Glassjaw, `https://music.youtube.com/channel/UC7u7YhIifuby0fhcU3f4AjQ`) shows "✔ Glassjaw — 6 releases queued" and one job per release, all with the same audio format; each lands in `Glassjaw/<Release> (Year)/`.
 - [ ] A YouTube Music music video without an album still downloads (Log: "downloading without the library layout").
+- [ ] Typing `abbey road` and pressing Enter opens Songs with covers; each tab loads once, **Load more** adds results without repeats, and a dead cover stays gray.
+- [ ] `R.E.M.` searches; a link in the box still shows **Download** and goes back to the queue.
+- [ ] **⬇** with the mode on Video downloads audio into the library; the row shows `✔ added`, the line next to **Log** shows the progress, and **Close** shows the job by name while it waits.
+- [ ] An artist asks `All releases?`: **No** cancels, **Yes** queues the artist job.
+- [ ] Without a network, a search shows the error and **Try again** works once it's back.
+- [ ] Albums show their song count while the rows are on screen, and scrolling loads the rest.
+- [ ] **👁** shows a sharp cover; clicking it, outside it or Esc closes it.
+- [ ] **➡** on an album lists its songs; **⬇** on a song, and on the album's own row, add to the queue. An artist goes down to an album and a song; **See all** shows the whole list, **Back** returns to the same scroll position, and **Close** to the queue.
+- [ ] **⏵** plays within a couple of seconds, shows **⏹**, and **⏹** stops it. Starting another song stops the first. On an album the hint names the song it plays.
+- [ ] A song without a clip at Apple (e.g. `アイドル` by YOASOBI) plays after a spinner of several seconds. Clicking the spinner stops it.
+- [ ] While a preview plays, **Check updates** is disabled. Closing the app stops the sound and removes the `dropdl-previews` temp folder.
+- [ ] With an older build (see above), **⬆ Update to …** is disabled during a download or preview. Clicking it shows the progress, restarts on the new version with the same settings, and removes `.dropdl-old` next to the app. A link pasted meanwhile waits in the queue.
+- [ ] From a read-only folder the update changes nothing, opens the release page, and the button stays.
 - [ ] With Audio: MP3, the same song gives one MP3 with a square cover.
 - [ ] A YouTube video inside a playlist gives only that video.
 - [ ] A title in Chinese, Japanese or Korean renders without boxes.
@@ -95,7 +130,7 @@ Both platforms:
 Windows:
 
 - [ ] `scripts/build-release.ps1` passes the dependency check.
-- [ ] `dist/dropdl.exe` shows the dropdl icon in Explorer, the window title bar and the taskbar, and Properties > Details shows product name dropdl and version 0.3.0. Task Manager lists the process as "dropdl".
+- [ ] `dist/dropdl.exe` shows the dropdl icon in Explorer, the window title bar and the taskbar, and Properties > Details shows product name dropdl and version 0.3.1. Task Manager lists the process as "dropdl".
 - [ ] Copy `dist/dropdl.exe` to an empty folder and run it: `bin/` and `config/` are created and all four indicators go from yellow (downloading) to green.
 - [ ] With an existing BtbN ffmpeg (version `N-…`) in `bin/`, the app replaces ffmpeg and ffprobe with the gyan.dev build (Log: `ffmpeg: updating N-… → 9.x`).
 - [ ] Replace `bin/yt-dlp.exe` with an older release and restart the app: it updates to the latest one.

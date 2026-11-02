@@ -1,0 +1,29 @@
+{
+ "resultCount": 4,
+ "results": [
+  {
+   "artistName": "Radiohead",
+   "trackName": "No Surprises",
+   "trackTimeMillis": 229120,
+   "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/f0/2a/fa/f02afaad-0a7f-9ceb-1236-55ef3d388061/mzaf_10063872040766906863.plus.aac.p.m4a"
+  },
+  {
+   "artistName": "Radiohead",
+   "trackName": "High and Dry",
+   "trackTimeMillis": 257480,
+   "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/97/28/68/972868b4-3ee8-24ec-2e38-466feb0218f2/mzaf_11025138326733736785.plus.aac.p.m4a"
+  },
+  {
+   "artistName": "Radiohead",
+   "trackName": "No Surprises (Remastered)",
+   "trackTimeMillis": 228387,
+   "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e0/c3/9e/e0c39e5a-f2f7-9f35-1db6-ed6e7b045bec/mzaf_4006840215574729356.plus.aac.p.m4a"
+  },
+  {
+   "artistName": "Radiohead",
+   "trackName": "No Surprises",
+   "trackTimeMillis": 229120,
+   "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/86/84/40/8684400c-4c0b-93c0-f7e0-d52879b96a34/mzaf_16135186986615947500.plus.aac.p.m4a"
+  }
+ ]
+}

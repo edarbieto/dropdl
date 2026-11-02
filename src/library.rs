@@ -556,6 +556,35 @@ mod e2e {
     use super::*;
     use lofty::prelude::*;
 
+    /// A search result's link downloads like a pasted one.
+    #[test]
+    #[ignore]
+    fn search_result() {
+        let tools = crate::job::e2e::install_tools();
+        let out_dir = crate::job::e2e::out_dir().join("library-search");
+        let _ = std::fs::remove_dir_all(&out_dir);
+        let hits = ytm::Client::new().search("Daft Punk Motherboard", ytm::Kind::Song).unwrap().hits;
+        let hit = hits.iter().find(|h| h.title == "Motherboard").expect("song not found");
+        let req = Request {
+            url: hit.url.clone(),
+            mode: Mode::Audio,
+            audio_format: AudioFormat::M4a,
+            out_dir,
+            browser: None,
+            template: None,
+        };
+        let mut files = Vec::new();
+        let result = run(&req, &tools, &Arc::default(), &AtomicBool::new(false), |e| {
+            if let Event::Done(p) = e {
+                files.push(p);
+            }
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(files.len(), 1);
+        assert!(files[0].to_string_lossy().ends_with("Motherboard.m4a"));
+        assert!(lofty::read_from_path(&files[0]).unwrap().primary_tag().is_some());
+    }
+
     #[test]
     #[ignore]
     fn song() {

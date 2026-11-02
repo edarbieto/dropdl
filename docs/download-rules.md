@@ -29,7 +29,7 @@ Both add `--embed-metadata --embed-thumbnail`. For YouTube Music, the thumbnail 
 
 ## YouTube Music: library layout
 
-Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album playlists** (`OLAK5uy_…`), **artists and playlists** go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)):
+Audio downloads (Auto or Audio mode) of YouTube Music **songs, albums, album playlists** (`OLAK5uy_…`), **artists and playlists** go through the music library mode (`src/library.rs`, design in [music-library.md](music-library.md)). Search results always do, whatever the mode:
 
 1. dropdl looks up the album on YouTube Music and MusicBrainz ("Looking up album").
 2. Each track gets its final path in the library root (`dropdl` in the Music folder, see music-library.md): `Album Artist/Album (Year)/01 - Title.ext` (`1-01 - Title.ext` on multi-disc albums). If that file exists, the track is skipped without downloading.

@@ -20,7 +20,7 @@ dropdl is a minimal egui desktop app (Windows and macOS) that downloads media fr
 - **Plan, then execute.** For anything beyond a small fix, first write a short plan (files to change, tests, docs, open decisions) and wait for the user's go-ahead. Then implement it, run the tests, and update the docs in the same change.
 - **Spike before designing on assumptions.** When behavior of an external service or tool is unknown, check it with a quick experiment and record the result (e.g. `docs/music-library.md`, Spike results).
 - **Ask only when something is unclear** or is a genuine decision (trade-offs, scope, naming the user cares about). Otherwise pick the sensible default, say so, and proceed. Offer a recommended option when asking.
-- **Current work:** v0.3.0 is published (first public release). Open: the Windows testing skipped for it (ROADMAP, v0.3.0 release), then the "Next" items. Every change goes through a branch and a pull request; releases are built by `.github/workflows/release.yml` from a tag (`docs/release.md`). The music library design and spike results stay in `docs/music-library.md`.
+- **Current work:** v0.3.1 (music search) is in progress on `feature/music-search`; v0.3.0 is published. Open: the Windows testing skipped for v0.3.0 (ROADMAP), then the "Next" items. Every change goes through a branch and a pull request; releases are built by `.github/workflows/release.yml` from a tag (`docs/release.md`). The music library design and spike results stay in `docs/music-library.md`.
 
 ## Layout
 
@@ -31,7 +31,10 @@ src/tools.rs   tool sources per platform, validation, download and update (into 
 src/paths.rs   data folders: bin/ and config/ next to the exe (fallback: per-user data dir; always inside a macOS .app)
 src/library.rs music library downloads: Album Artist/Album (Year)/NN - Title.ext, skip existing, per-track download + tagging
 src/music.rs   music library metadata: Album/Track, link classification, YouTube Music + MusicBrainz lookup
-src/ytm.rs     YouTube Music innertube client and page parsers
+src/ytm.rs     YouTube Music innertube client and page parsers, including search
+src/search.rs  music search: results per tab, opened pages, covers, the result row
+src/preview.rs song previews: Apple's clip or 30 s through yt-dlp, played with the system's player
+src/update.rs  updates dropdl itself from its GitHub releases: checksum, swap next to the running app, restart
 src/musicbrainz.rs  MusicBrainz search, release matching, apply to Album
 src/tags.rs    writes music tags, cover and lyrics into M4A/MP3 files (lofty), cover.jpg
 src/lyrics.rs  lyrics lookup: LRCLIB (exact, then search filtered by length), then YouTube Music
@@ -55,7 +58,7 @@ cargo test                      # offline unit tests
 cargo test -- --ignored --nocapture   # e2e: installs tools + real downloads (network)
 ```
 
-The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`, `library::e2e::artist`, `library::e2e::playlist`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
+The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`, `library::e2e::search_result`, `library::e2e::artist`, `library::e2e::playlist`) honor `DROPDL_TEST_URLS` (space-separated), `DROPDL_TEST_OUT` and `DROPDL_HOME` (data folder; set it to reuse an existing `bin/` instead of downloading ~400 MB of tools again). Don't run it against the user's real Downloads folder.
 
 ## Conventions
 
@@ -80,4 +83,7 @@ The e2e tests (`install_and_download`, `cancel`, `library::e2e::song`, `library:
 - Latest tool versions are read from redirects, not the GitHub API (`tools::version_in`). martin-riedl.de answers `HEAD` with 404: use `GET` without following redirects.
 - Without a login, YouTube Music album pages often list music videos instead of the songs. `ytm.rs` takes each song's id from the track menu's "View song credits" entry (`MPTC` + id).
 - Innertube continuations need the `visitorData` of the first response. Keep it in memory only, and never record it in fixtures.
+- Search pages repeat results, and the ranking changes between identical searches: keep results unique by link (`Search::add_page`), and don't assume a live order in tests.
+- YouTube Music has no preview link, and `yt-dlp -g` URLs answered 403 to curl and ffmpeg (cause unknown): previews are Apple's clips, or `yt-dlp -o - | ffmpeg`. Compare artist and length as well as title, or covers play instead.
+- The self-update reads the release file names (`update::asset`, `SHA256SUMS.txt`): renaming them in `release.yml` strands older copies. Start the new build from `on_exit`, after eframe saves the settings.
 - lofty 0.25.4 panics when an MP4 write fails halfway (fatal with `panic = "abort"`), and `TagType::remove_from_path` always fails (opens read-only). `tags::write` tags an in-memory copy and replaces the file via a temp file and a rename; keep it that way.

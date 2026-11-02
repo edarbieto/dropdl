@@ -26,6 +26,8 @@ Alternatives that were rejected:
 | yt-dlp in `bin/` | `yt-dlp.exe` | `yt-dlp/yt-dlp_macos` + `yt-dlp/_internal/` |
 | Cancel | `taskkill /T /F` on the yt-dlp process tree | yt-dlp runs in its own process group (`process_group(0)`); `kill -KILL -<pgid>` |
 | Show in folder | `explorer /select,` | `open -R` |
+| Song preview | ffmpeg to WAV, then PowerShell's `Media.SoundPlayer` (untested) | `afplay` |
+| Update dropdl | renames the running exe to `.dropdl-old`, puts the new one in its place (untested) | `ditto` and `codesign --verify`, renames the `.app` to `.dropdl-old`, `open -n` |
 | CJK fallback fonts | `msyh.ttc`, `malgun.ttf` | `Hiragino Sans GB.ttc`, `AppleSDGothicNeo.ttc` |
 | Paste hint | Ctrl+V | ⌘V (egui maps both to `Event::Paste`) |
 | `tools::command()` | sets `CREATE_NO_WINDOW` | plain `Command` |

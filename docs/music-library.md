@@ -103,6 +103,24 @@ Album data (album artist, album, year, track and disc numbers, title) is known b
 - A partial download never counts as existing: yt-dlp writes `*.part` files, and tagging happens before the final rename.
 - Known limit: a file that was renamed or moved by hand is not recognized and gets downloaded again.
 
+## Search
+
+The text box searches YouTube Music when its text isn't a link (`job::parse_url`). Without a scheme, a link needs a host with a dot and a path, so `youtu.be/abc` is a link and `R.E.M.` or `will.i.am` are searched.
+
+- Results (`src/search.rs`) replace the queue until **Close**, and the options are hidden meanwhile. A line next to **Log** shows the running download and how many jobs wait.
+- Tabs: Songs (first), Albums, Artists, Playlists. A tab loads when opened. A new search stays on the open tab.
+- Playlists list YouTube Music's own first, then the community's. Only the community search has more pages.
+- **Load more** follows the continuation token. Pages can repeat results, so results are unique by link, and a page that adds nothing ends the list.
+- A row shows the cover, title, subtitle (type, artist, year or length) and an **E** badge, because versions of an album can look nearly identical.
+- Results always download as library audio (`Mode::Audio`), in the chosen audio format. Artists ask for confirmation first, because they queue every release.
+- Covers: the smallest thumbnail of at least 112 px (56 px rows at 2x), or else the largest. They come only from Google's image hosts, up to 1 MiB and 4096 px, as JPEG, cropped to a square and reduced to 112 px. A failed cover keeps the gray placeholder.
+- Nothing is saved: queries, results and covers stay in memory. A new search makes older background work stop (`live_search`), and late responses are dropped by their search id.
+- **Opening a result** (`Search::stack`, `ytm::Client::detail`): albums list their songs; artists their top songs, albums, singles and EPs and playlists; playlists their first 100 items, with `first 100 shown` when there are more. **See all** opens the whole list of a shelf. Pages stay in `Search::details` by link, so **Back** only drops the top of the stack, and every list keeps its own scroll position. Downloading from any level works like a search result: a track is a song link.
+- **Song counts:** search results don't have them, so an album row reads its page when it's on screen, at most `MAX_DETAILS` at a time, each once per search. That page is what opening the album shows, so it opens instantly. A page that failed isn't read again until opened.
+- **Large covers:** the same image at 720 px (the size is in the link), loaded on request. The small copy shows until it arrives, or if it fails.
+- **Previews** (`src/preview.rs`): YouTube Music has no preview link, so a song plays Apple's 30-second clip when the iTunes search has one with the same title, artist and length (±3 s), which keeps covers and other edits out. Otherwise ffmpeg cuts 30 seconds from 30 % into the song while yt-dlp streams it, and stops reading there. One preview plays at a time. Clips go to the temp folder `dropdl-previews`, removed on exit and on the next start, and a clip plays again without loading. macOS plays through `afplay`, and Windows converts to WAV and plays through PowerShell's `Media.SoundPlayer`, so no audio library is needed; Linux has no preview yet. A running preview blocks **Check updates**, like a download.
+- An album's preview is its most played song (the play counts of its page).
+
 ## Settings
 
 Kept to the minimum:
@@ -159,6 +177,16 @@ Still only Windows system DLLs. `lofty` 0.25.4 does not compile with `default-fe
 - ID3v2 (MP3): writes ID3v2.4. Several artists become one `TXXX:ARTISTS` frame with null-separated values. With one `TrackArtist` item per artist (as `tags.rs` does), `TPE1` also holds all of them, null-separated (ID3v2.4 multi-value).
 - Gotcha: lyrics in ID3v2 need `ItemKey::UnsyncLyrics` (→ `USLT`). `ItemKey::Lyrics` is silently dropped for ID3v2. The language defaults to `XXX`; a native `UnsynchronizedTextFrame` can set it.
 
+**YouTube Music search** (November 2026, `POST …/youtubei/v1/search`, no login):
+- `params` filters the results. The values in `ytm.rs` are the web client's and are undocumented. Each filtered search returned one `musicShelfRenderer`, with up to 20 items for songs, albums and community playlists, and about 10 for artists and YouTube Music playlists. Each took about 1 s.
+- Ids: songs in `playlistItemData.videoId` (all `MUSIC_VIDEO_TYPE_ATV`), albums `MPREb_…`, artists `UC…`, playlists `VL` + the list id. All map to links that `music::classify` already reads.
+- Ranking changes between identical searches, so tests must not assume a live order.
+- Pages: `search` with `{ "continuation": token }` returns `continuationContents.musicShelfContinuation`. Pages repeat results (19 of 20 on one songs page), and the albums list for "daft punk" ended after 79 results. Artists and YouTube Music playlists have no token. Tokens also worked without `visitorData`, but dropdl sends it, as on other pages.
+- Same-name results are common: "nevermind" gave one album and 11 singles by other artists in its first 12 albums, and "abbey road" gave *2019 Mix* and *Super Deluxe Edition* with nearly the same cover. The subtitle tells them apart. `label: "Explicit"` marks explicit versions.
+- Thumbnails were JPEG for every kind, without an `Accept` header. Songs and artists offer 60 and 120 px; albums and YouTube Music playlists up to 544 px; community playlists 192 px and up, sometimes only 853 px wide. Some community thumbnails answer 404.
+- The live test decoded 77 of 78 covers on its first pages.
+- Decoding JPEG adds 99 KB to the macOS release binary (47 KB with gzip), with no new crates: `image` and `zune-jpeg` were already linked through eframe and arboard.
+
 **YouTube Music internal API** (`POST https://music.youtube.com/youtubei/v1/{search,browse,next}`, client `WEB_REMIX`, no login needed):
 - Album (`browse` with `MPREb_…`): `musicResponsiveHeaderRenderer` has the title, type (Album / EP / Single), year, the album artist with its channel id (`straplineTextOne`) and the cover. The track list (`secondaryContents…musicShelfRenderer`) has the track number (`index`), title, artists, duration and `videoId` per track. `microformat.urlCanonical` gives the album's `OLAK5uy_…` playlist.
 - Several artists come as separate runs: artists carry a `browseEndpoint`, separators (`, `, ` & `) don't. Use the runs, not string splitting.
@@ -200,3 +228,9 @@ Larger options: Quicksand (5 albums, 10 singles/EPs), Will Haven (8 albums, 7 si
 - "Daft Punk – Random Access Memories": 27 releases (CD, vinyl, digital, anniversary editions with 22 tracks). The track-count filter and the format preference pick a 13-track single-disc edition.
 - Releases include ISRCs and a Cover Art Archive flag.
 - Match rate on 17 albums (1960s–2020s, see the YouTube Music list above): 12 with the first version of the rules, 16 after adding base titles, accent folding, the title-only search and the 503 retry. The miss is a covers compilation that isn't on MusicBrainz. The first version also took the reissue's date (Nevermind 2011, Arrival 2012); the release group's first release date gives 1991 and 1976.
+
+**Previews** (November 2026, macOS, one network):
+- The web client's `player` answers `UNPLAYABLE` without a session, and neither it nor `next` has any preview or highlight field. yt-dlp reads a "most replayed" `heatmap`, but only through its 2–3 s extraction, and the one song checked peaked at second 0.
+- Direct requests to the audio URL from `yt-dlp -g` answered 403, also with the headers yt-dlp reports; the cause is unknown. `--download-sections` failed (ffmpeg exit 251). Piping `yt-dlp -o -` into ffmpeg works: about 7.5–8.5 s and 490 KB for 30 seconds, while the whole song took 7.5 s and 4.4 MB.
+- The iTunes search has no key: about 0.5 s to find a song and 0.7 s for its clip (30 s, 1 MB, AAC). With title, artist and length compared, 13 of 16 songs in several languages matched. The misses were a title in Japanese, listed in English at Apple, and two songs whose listed versions differ by more than 3 s. Without the artist check it picked a cover.
+- `rodio` added about 1 MB (15 %), 34 crates and ALSA on Linux for the same result, so previews use the system's player.
